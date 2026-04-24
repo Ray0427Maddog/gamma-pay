@@ -34,20 +34,68 @@ export async function POST(req: Request) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
 
-    const jobNumber = session.metadata?.jobNumber;
-    const amountPaid = session.amount_total;
+    const jobNumber = session.metadata?.jobNumber || "";
+    const jobUuid = session.metadata?.jobUuid || "";
+    const amountPaid = (session.amount_total || 0) / 100;
     const paymentStatus = session.payment_status;
     const stripeSessionId = session.id;
 
     console.log("✅ PAYMENT COMPLETE", {
       jobNumber,
+      jobUuid,
       amountPaid,
       paymentStatus,
       stripeSessionId,
     });
 
-    // NEXT STEP:
-    // This is where we will create a ServiceM8 Job Payment.
+    if (!jobUuid) {
+      console.error("❌ Missing ServiceM8 jobUuid in Stripe metadata");
+      return NextResponse.json({ received: true });
+    }
+
+    if (paymentStatus !== "paid") {
+      console.error("❌ Stripe session not marked as paid", {
+        paymentStatus,
+        stripeSessionId,
+      });
+      return NextResponse.json({ received: true });
+    }
+
+    try {
+      const serviceM8Response = await fetch(
+        "https://api.servicem8.com/api_1.0/job_payment.json",
+        {
+          method: "POST",
+          headers: {
+            "X-API-Key": process.env.SERVICEM8_API_KEY!,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            job_uuid: jobUuid,
+            payment_date: new Date()
+              .toISOString()
+              .slice(0, 19)
+              .replace("T", " "),
+            payment_amount: amountPaid,
+            payment_method: "Credit Card",
+            payment_note: `Stripe Checkout payment | Job ${jobNumber} | Session ${stripeSessionId}`,
+          }),
+        }
+      );
+
+      const responseText = await serviceM8Response.text();
+
+      if (!serviceM8Response.ok) {
+        console.error("❌ ServiceM8 payment creation failed:", {
+          status: serviceM8Response.status,
+          response: responseText,
+        });
+      } else {
+        console.log("💰 ServiceM8 payment created:", responseText);
+      }
+    } catch (err) {
+      console.error("❌ ServiceM8 payment request error:", err);
+    }
   }
 
   return NextResponse.json({ received: true });
