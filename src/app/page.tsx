@@ -31,10 +31,41 @@ export default function Home() {
           className="w-full p-4 rounded-xl bg-zinc-900 border border-zinc-700"
         />
 
-        <button className="w-full p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold">
-          Charge Card
-        </button>
+<button
+  onClick={async () => {
+    console.log("CLICKED");
 
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobNumber,
+          amount,
+        }),
+      });
+
+      console.log("Response status:", res.status);
+
+      const data = await res.json();
+      console.log("Response data:", data);
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Could not start payment");
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+      alert("Fetch failed");
+    }
+  }}
+  className="w-full p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
+>
+  Charge Card
+</button>
       </div>
     </div>
   );
