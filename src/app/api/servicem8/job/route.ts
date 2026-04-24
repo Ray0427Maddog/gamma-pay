@@ -1,5 +1,23 @@
 import { NextResponse } from "next/server";
 
+async function serviceM8Get(path: string, apiKey: string) {
+  const res = await fetch(`https://api.servicem8.com/api_1.0/${path}`, {
+    method: "GET",
+    headers: {
+      "X-API-Key": apiKey,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`ServiceM8 error ${res.status}: ${text}`);
+  }
+
+  return res.json();
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -23,32 +41,7 @@ export async function GET(req: Request) {
 
     const filter = encodeURIComponent(`generated_job_id eq '${jobNumber}'`);
 
-    const res = await fetch(
-      `https://api.servicem8.com/api_1.0/job.json?$filter=${filter}`,
-      {
-        method: "GET",
-        headers: {
-          "X-API-Key": apiKey,
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      }
-    );
-
-    if (!res.ok) {
-      const text = await res.text();
-
-      return NextResponse.json(
-        {
-          error: "ServiceM8 lookup failed",
-          status: res.status,
-          details: text,
-        },
-        { status: 500 }
-      );
-    }
-
-    const jobs = await res.json();
+    const jobs = await serviceM8Get(`job.json?$filter=${filter}`, apiKey);
 
     if (!Array.isArray(jobs) || jobs.length === 0) {
       return NextResponse.json(
@@ -59,11 +52,35 @@ export async function GET(req: Request) {
 
     const job = jobs[0];
 
+    let customer = "Unknown customer";
+    let billingAddress = job.billing_address || "";
+
+    if (job.company_uuid) {
+      try {
+        const client = await serviceM8Get(
+          `company/${job.company_uuid}.json`,
+          apiKey
+        );
+
+        customer =
+          client.name ||
+          client.company_name ||
+          job.company_name ||
+          job.billing_name ||
+          "Unknown customer";
+
+        billingAddress = client.billing_address || client.address || billingAddress;
+      } catch (err) {
+        console.error("Client lookup failed:", err);
+      }
+    }
+
     return NextResponse.json({
       uuid: job.uuid,
       jobNumber: job.generated_job_id,
-      customer: job.company_name || job.billing_name || "Unknown customer",
-      address: job.job_address || job.billing_address || "",
+      customer,
+      address: job.job_address || billingAddress || "",
+      billingAddress,
       status: job.status || "",
       paymentReceived: job.payment_received || "",
       raw: job,
