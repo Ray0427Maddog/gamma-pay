@@ -8,7 +8,7 @@ type JobResult = {
   customer: string;
   address: string;
   status: string;
-  paymentReceived: string;
+  paymentReceived: number | string;
   raw: {
     total_invoice_amount?: string;
     job_description?: string;
@@ -21,59 +21,88 @@ export default function Home() {
   const [job, setJob] = useState<JobResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [markComplete, setMarkComplete] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSuccess(params.get("success") === "true");
   }, []);
 
-  const servicem8Amount = job?.raw?.total_invoice_amount
+  const totalAmount = job?.raw?.total_invoice_amount
     ? Number(job.raw.total_invoice_amount)
     : 0;
 
-  const amountToCharge = servicem8Amount || Number(manualAmount);
+  const paidAmount = Number(job?.paymentReceived || 0);
+  const outstandingAmount = totalAmount > 0 ? Math.max(totalAmount - paidAmount, 0) : 0;
+
+  const amountToCharge = outstandingAmount > 0
+    ? outstandingAmount
+    : Number(manualAmount || 0);
+
+  const isPaid = totalAmount > 0 && outstandingAmount <= 0;
 
   async function findJob() {
-    setLoading(true);
-    setJob(null);
-
-    const res = await fetch(`/api/servicem8/job?jobNumber=${jobNumber}`);
-    const data = await res.json();
-
-    setLoading(false);
-
-    if (!res.ok) {
-      alert(data.error || "Job not found");
+    if (!jobNumber.trim()) {
+      alert("Enter a ServiceM8 job number");
       return;
     }
 
-    setJob(data);
+    setLoading(true);
+    setJob(null);
+
+    try {
+      const res = await fetch(`/api/servicem8/job?jobNumber=${encodeURIComponent(jobNumber)}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "Job not found");
+        return;
+      }
+
+      setJob(data);
+    } catch (err) {
+      console.error(err);
+      alert("Could not look up ServiceM8 job");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function chargeCard() {
-    if (!jobNumber || !amountToCharge) {
+    if (!jobNumber.trim() || !amountToCharge || amountToCharge <= 0) {
       alert("Enter job number and amount");
       return;
     }
 
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        jobNumber,
-        jobUuid: job?.uuid || "",
-        amount: amountToCharge,
-      }),
-    });
+    if (isPaid) {
+      alert("This job appears to be fully paid already");
+      return;
+    }
 
-    const data = await res.json();
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobNumber,
+          jobUuid: job?.uuid || "",
+          amount: amountToCharge,
+          markComplete,
+        }),
+      });
 
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      alert(data.error || "Could not start payment");
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Could not start payment");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Could not start payment");
     }
   }
 
@@ -102,7 +131,7 @@ export default function Home() {
           <button
             onClick={findJob}
             disabled={loading}
-            className="px-4 rounded-xl bg-zinc-700 font-bold"
+            className="px-4 rounded-xl bg-zinc-700 font-bold disabled:opacity-50"
           >
             {loading ? "..." : "Find"}
           </button>
@@ -113,14 +142,25 @@ export default function Home() {
             <p className="text-sm text-zinc-400">Job #{job.jobNumber}</p>
             <p className="font-bold">{job.customer}</p>
             <p className="whitespace-pre-line text-sm">{job.address}</p>
-            <p className="text-sm text-zinc-400">{job.status}</p>
-            <p className="text-2xl font-bold text-pink-500">
-              £{servicem8Amount.toFixed(2)}
-            </p>
+            <p className="text-sm text-zinc-400">Status: {job.status}</p>
+
+            <div className="pt-2 space-y-1">
+              <p>Total: £{totalAmount.toFixed(2)}</p>
+              <p>Paid: £{paidAmount.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-pink-500">
+                Outstanding: £{outstandingAmount.toFixed(2)}
+              </p>
+            </div>
+
+            {isPaid && (
+              <div className="p-3 bg-green-700 rounded-xl font-bold">
+                ✔ Fully paid
+              </div>
+            )}
           </div>
         )}
 
-        {!servicem8Amount && (
+        {!totalAmount && (
           <input
             type="number"
             placeholder="Manual Amount (£)"
@@ -130,11 +170,26 @@ export default function Home() {
           />
         )}
 
+        <label className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900 border border-zinc-700">
+          <input
+            type="checkbox"
+            checked={markComplete}
+            onChange={(e) => setMarkComplete(e.target.checked)}
+            className="w-5 h-5"
+          />
+          <span>Mark job complete after payment</span>
+        </label>
+
         <button
           onClick={chargeCard}
-          className="w-full p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
+          disabled={isPaid}
+          className={`w-full p-4 rounded-xl font-bold ${
+            isPaid
+              ? "bg-gray-600 cursor-not-allowed"
+              : "bg-gradient-to-r from-purple-600 to-pink-500"
+          }`}
         >
-          Charge £{amountToCharge ? amountToCharge.toFixed(2) : "0.00"}
+          {isPaid ? "Already Paid" : `Charge £${amountToCharge.toFixed(2)}`}
         </button>
       </div>
     </div>

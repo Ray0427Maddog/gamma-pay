@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
+function serviceM8Timestamp() {
+  return new Date().toISOString().slice(0, 19).replace("T", " ");
+}
+
 export async function POST(req: Request) {
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
@@ -36,6 +40,8 @@ export async function POST(req: Request) {
 
     const jobNumber = session.metadata?.jobNumber || "";
     const jobUuid = session.metadata?.jobUuid || "";
+    const markComplete = session.metadata?.markComplete === "yes";
+
     const amountPaid = (session.amount_total || 0) / 100;
     const paymentStatus = session.payment_status;
     const stripeSessionId = session.id;
@@ -43,6 +49,7 @@ export async function POST(req: Request) {
     console.log("✅ PAYMENT COMPLETE", {
       jobNumber,
       jobUuid,
+      markComplete,
       amountPaid,
       paymentStatus,
       stripeSessionId,
@@ -62,66 +69,96 @@ export async function POST(req: Request) {
     }
 
     try {
-      const serviceM8Response = await fetch(
-  "https://api.servicem8.com/api_1.0/jobpayment.json",
+      const paymentRes = await fetch(
+        "https://api.servicem8.com/api_1.0/jobpayment.json",
         {
           method: "POST",
           headers: {
             "X-API-Key": process.env.SERVICEM8_API_KEY!,
             "Content-Type": "application/json",
           },
-        body: JSON.stringify({
-  job_uuid: jobUuid,
-  actioned_by_uuid: "",
-  timestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
-  amount: String(amountPaid),
-  method: "Stripe",
-  note: `Stripe Checkout payment | Job ${jobNumber} | Session ${stripeSessionId}`,
-}),
+          body: JSON.stringify({
+            job_uuid: jobUuid,
+            actioned_by_uuid: "",
+            timestamp: serviceM8Timestamp(),
+            amount: String(amountPaid),
+            method: "Stripe",
+            note: `Stripe Checkout payment | Job ${jobNumber} | Session ${stripeSessionId}`,
+          }),
         }
       );
 
-      const responseText = await serviceM8Response.text();
+      const paymentText = await paymentRes.text();
 
-      if (!serviceM8Response.ok) {
+      if (!paymentRes.ok) {
         console.error("❌ ServiceM8 payment creation failed:", {
-          status: serviceM8Response.status,
-          response: responseText,
+          status: paymentRes.status,
+          response: paymentText,
+        });
+
+        return NextResponse.json({ received: true });
+      }
+
+      console.log("💰 ServiceM8 payment created:", paymentText);
+
+      const noteRes = await fetch(
+        "https://api.servicem8.com/api_1.0/note.json",
+        {
+          method: "POST",
+          headers: {
+            "X-API-Key": process.env.SERVICEM8_API_KEY!,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            related_object_uuid: jobUuid,
+            related_object: "job",
+            note: `💳 Payment received via Stripe (£${amountPaid.toFixed(
+              2
+            )}) | Session ${stripeSessionId}`,
+          }),
+        }
+      );
+
+      const noteText = await noteRes.text();
+
+      if (!noteRes.ok) {
+        console.error("❌ Failed to create ServiceM8 note:", {
+          status: noteRes.status,
+          response: noteText,
         });
       } else {
-        console.log("💰 ServiceM8 payment created:", responseText);
+        console.log("📝 ServiceM8 note created:", noteText);
       }
-try {
-  const noteRes = await fetch(
-    "https://api.servicem8.com/api_1.0/note.json",
-    {
-      method: "POST",
-      headers: {
-        "X-API-Key": process.env.SERVICEM8_API_KEY!,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        related_object_uuid: jobUuid,
-        related_object: "job",
-        note: `💳 Payment received via Stripe (£${amountPaid.toFixed(
-          2
-        )})`,
-      }),
-    }
-  );
 
-  const noteText = await noteRes.text();
+      if (markComplete) {
+        const completeRes = await fetch(
+          `https://api.servicem8.com/api_1.0/job/${jobUuid}.json`,
+          {
+            method: "POST",
+            headers: {
+              "X-API-Key": process.env.SERVICEM8_API_KEY!,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              status: "Completed",
+              completion_date: serviceM8Timestamp(),
+            }),
+          }
+        );
 
-  if (!noteRes.ok) {
-    console.error("❌ Failed to create ServiceM8 note:", noteText);
-  } else {
-    console.log("📝 ServiceM8 note created");
-  }
-} catch (err) {
-  console.error("❌ Note creation error:", err);
-}
+        const completeText = await completeRes.text();
+
+        if (!completeRes.ok) {
+          console.error("❌ Failed to mark ServiceM8 job complete:", {
+            status: completeRes.status,
+            response: completeText,
+          });
+        } else {
+          console.log("✅ ServiceM8 job marked complete:", completeText);
+        }
+      }
     } catch (err) {
-      console.error("❌ ServiceM8 payment request error:", err);
+      console.error("❌ ServiceM8 webhook handling error:", err);
     }
   }
 
