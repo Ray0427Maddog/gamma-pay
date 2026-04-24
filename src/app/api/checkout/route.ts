@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         quantity: 1,
       },
     ],
-    success_url: `${req.headers.get("origin")}/?success=true`,
+    success_url: `${req.headers.get("origin")}/?success=true&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${req.headers.get("origin")}/?cancelled=true`,
     metadata: {
       jobNumber,
