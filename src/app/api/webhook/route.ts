@@ -63,23 +63,21 @@ export async function POST(req: Request) {
 
     try {
       const serviceM8Response = await fetch(
-        "https://api.servicem8.com/api_1.0/job_payment.json",
+  "https://api.servicem8.com/api_1.0/jobpayment.json",
         {
           method: "POST",
           headers: {
             "X-API-Key": process.env.SERVICEM8_API_KEY!,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            job_uuid: jobUuid,
-            payment_date: new Date()
-              .toISOString()
-              .slice(0, 19)
-              .replace("T", " "),
-            payment_amount: amountPaid,
-            payment_method: "Credit Card",
-            payment_note: `Stripe Checkout payment | Job ${jobNumber} | Session ${stripeSessionId}`,
-          }),
+        body: JSON.stringify({
+  job_uuid: jobUuid,
+  actioned_by_uuid: "",
+  timestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
+  amount: String(amountPaid),
+  method: "Stripe",
+  note: `Stripe Checkout payment | Job ${jobNumber} | Session ${stripeSessionId}`,
+}),
         }
       );
 
