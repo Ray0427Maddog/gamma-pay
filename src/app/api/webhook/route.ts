@@ -130,33 +130,36 @@ export async function POST(req: Request) {
         console.log("📝 ServiceM8 note created:", noteText);
       }
 
-      if (markComplete) {
-        const completeRes = await fetch(
-          `https://api.servicem8.com/api_1.0/job/${jobUuid}.json`,
-          {
-            method: "POST",
-            headers: {
-              "X-API-Key": process.env.SERVICEM8_API_KEY!,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              status: "Completed",
-              completion_date: serviceM8Timestamp(),
-            }),
-          }
-        );
+if (markComplete) {
+  const completeRes = await fetch(
+    `https://api.servicem8.com/api_1.0/job/${jobUuid}.json`,
+    {
+      method: "PUT", // ✅ THIS IS THE FIX
+      headers: {
+        "X-API-Key": process.env.SERVICEM8_API_KEY!,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: "Completed",
+        completion_date: new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace("T", " "),
+      }),
+    }
+  );
 
-        const completeText = await completeRes.text();
+  const completeText = await completeRes.text();
 
-        if (!completeRes.ok) {
-          console.error("❌ Failed to mark ServiceM8 job complete:", {
-            status: completeRes.status,
-            response: completeText,
-          });
-        } else {
-          console.log("✅ ServiceM8 job marked complete:", completeText);
-        }
-      }
+  if (!completeRes.ok) {
+    console.error("❌ Failed to mark ServiceM8 job complete:", {
+      status: completeRes.status,
+      response: completeText,
+    });
+  } else {
+    console.log("✅ ServiceM8 job marked complete:", completeText);
+  }
+}
     } catch (err) {
       console.error("❌ ServiceM8 webhook handling error:", err);
     }
