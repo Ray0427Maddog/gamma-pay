@@ -8,8 +8,11 @@ type JobResult = {
   customer: string;
   address: string;
   status: string;
-  paymentReceived: number | string;
-  raw: {
+  totalAmount: number;
+  paidAmount: number;
+  outstandingAmount: number;
+  isFullyPaid: boolean;
+  raw?: {
     total_invoice_amount?: string;
     job_description?: string;
   };
@@ -28,18 +31,14 @@ export default function Home() {
     setSuccess(params.get("success") === "true");
   }, []);
 
-  const totalAmount = job?.raw?.total_invoice_amount
-    ? Number(job.raw.total_invoice_amount)
-    : 0;
+  const totalAmount = Number(job?.totalAmount || 0);
+  const paidAmount = Number(job?.paidAmount || 0);
+  const outstandingAmount = Number(job?.outstandingAmount || 0);
 
-  const paidAmount = Number(job?.paymentReceived || 0);
-  const outstandingAmount = totalAmount > 0 ? Math.max(totalAmount - paidAmount, 0) : 0;
+  const amountToCharge =
+    outstandingAmount > 0 ? outstandingAmount : Number(manualAmount || 0);
 
-  const amountToCharge = outstandingAmount > 0
-    ? outstandingAmount
-    : Number(manualAmount || 0);
-
-  const isPaid = totalAmount > 0 && outstandingAmount <= 0;
+  const isPaid = Boolean(job?.isFullyPaid);
 
   async function findJob() {
     if (!jobNumber.trim()) {
@@ -51,7 +50,10 @@ export default function Home() {
     setJob(null);
 
     try {
-      const res = await fetch(`/api/servicem8/job?jobNumber=${encodeURIComponent(jobNumber)}`);
+      const res = await fetch(
+        `/api/servicem8/job?jobNumber=${encodeURIComponent(jobNumber)}`
+      );
+
       const data = await res.json();
 
       if (!res.ok) {

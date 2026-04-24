@@ -39,9 +39,8 @@ export async function GET(req: Request) {
       );
     }
 
-    const filter = encodeURIComponent(`generated_job_id eq '${jobNumber}'`);
-
-    const jobs = await serviceM8Get(`job.json?$filter=${filter}`, apiKey);
+    const jobFilter = encodeURIComponent(`generated_job_id eq '${jobNumber}'`);
+    const jobs = await serviceM8Get(`job.json?$filter=${jobFilter}`, apiKey);
 
     if (!Array.isArray(jobs) || jobs.length === 0) {
       return NextResponse.json(
@@ -69,11 +68,34 @@ export async function GET(req: Request) {
           job.billing_name ||
           "Unknown customer";
 
-        billingAddress = client.billing_address || client.address || billingAddress;
+        billingAddress =
+          client.billing_address || client.address || billingAddress;
       } catch (err) {
         console.error("Client lookup failed:", err);
       }
     }
+
+    let payments: any[] = [];
+    let paidAmount = 0;
+
+    try {
+      const paymentFilter = encodeURIComponent(`job_uuid eq '${job.uuid}'`);
+      payments = await serviceM8Get(
+        `jobpayment.json?$filter=${paymentFilter}`,
+        apiKey
+      );
+
+      if (Array.isArray(payments)) {
+        paidAmount = payments.reduce((total, payment) => {
+          return total + Number(payment.amount || 0);
+        }, 0);
+      }
+    } catch (err) {
+      console.error("Job payment lookup failed:", err);
+    }
+
+    const totalAmount = Number(job.total_invoice_amount || 0);
+    const outstandingAmount = Math.max(totalAmount - paidAmount, 0);
 
     return NextResponse.json({
       uuid: job.uuid,
@@ -82,7 +104,12 @@ export async function GET(req: Request) {
       address: job.job_address || billingAddress || "",
       billingAddress,
       status: job.status || "",
-      paymentReceived: job.payment_received || "",
+      totalAmount,
+      paidAmount,
+      outstandingAmount,
+      isFullyPaid: totalAmount > 0 && outstandingAmount <= 0,
+      paymentReceivedFlag: Number(job.payment_received || 0),
+      payments,
       raw: job,
     });
   } catch (err: any) {
