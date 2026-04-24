@@ -91,6 +91,35 @@ export async function POST(req: Request) {
       } else {
         console.log("💰 ServiceM8 payment created:", responseText);
       }
+try {
+  const noteRes = await fetch(
+    "https://api.servicem8.com/api_1.0/note.json",
+    {
+      method: "POST",
+      headers: {
+        "X-API-Key": process.env.SERVICEM8_API_KEY!,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        related_object_uuid: jobUuid,
+        related_object: "job",
+        note: `💳 Payment received via Stripe (£${amountPaid.toFixed(
+          2
+        )})`,
+      }),
+    }
+  );
+
+  const noteText = await noteRes.text();
+
+  if (!noteRes.ok) {
+    console.error("❌ Failed to create ServiceM8 note:", noteText);
+  } else {
+    console.log("📝 ServiceM8 note created");
+  }
+} catch (err) {
+  console.error("❌ Note creation error:", err);
+}
     } catch (err) {
       console.error("❌ ServiceM8 payment request error:", err);
     }
