@@ -134,17 +134,14 @@ if (markComplete) {
   const completeRes = await fetch(
     `https://api.servicem8.com/api_1.0/job/${jobUuid}.json`,
     {
-      method: "PUT", // ✅ THIS IS THE FIX
+      method: "POST",
       headers: {
         "X-API-Key": process.env.SERVICEM8_API_KEY!,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         status: "Completed",
-        completion_date: new Date()
-          .toISOString()
-          .slice(0, 19)
-          .replace("T", " "),
+        completion_date: serviceM8Timestamp(),
       }),
     }
   );
@@ -157,7 +154,7 @@ if (markComplete) {
       response: completeText,
     });
   } else {
-    console.log("✅ ServiceM8 job marked complete:", completeText);
+    console.log("✅ ServiceM8 job completion request sent:", completeText);
   }
 }
     } catch (err) {
