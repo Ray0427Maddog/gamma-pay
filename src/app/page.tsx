@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function Home() {
-  const searchParams = useSearchParams();
-  const success = searchParams.get("success");
-
   const [jobNumber, setJobNumber] = useState("");
   const [amount, setAmount] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setSuccess(params.get("success") === "true");
+  }, []);
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
