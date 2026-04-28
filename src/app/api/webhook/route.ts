@@ -99,7 +99,7 @@ if (companyUuid) {
 
   if (contactUuid) {
     const contactRes = await fetch(
-      `https://api.servicem8.com/api_1.0/contact/${contactUuid}.json`,
+      `https://api.servicem8.com/api_1.0/companycontact/${contactUuid}.json`,
       {
         headers: {
           "X-API-Key": process.env.SERVICEM8_API_KEY!,
