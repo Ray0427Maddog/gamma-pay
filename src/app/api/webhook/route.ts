@@ -128,7 +128,7 @@ const billingContact =
   contactsData.find(
     (contact) =>
       contact.type === "BILLING" &&
-      contact.active === 1 &&
+      Number(contact.active) === 1 &&
       contact.email
   ) ||
   contactsData.find(
@@ -139,7 +139,9 @@ const billingContact =
   contactsData.find((contact) => contact.email);
 
 customerEmail = billingContact?.email || "";
-          console.log("📧 Customer email fetched:", customerEmail);
+
+console.log("📧 Selected billing contact:", billingContact);
+console.log("📧 Customer email fetched:", customerEmail);
         }
       }
 
