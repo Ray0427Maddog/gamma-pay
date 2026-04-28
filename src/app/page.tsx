@@ -104,6 +104,8 @@ export default function Home() {
           amount: amountToCharge,
           markComplete,
           paymentRoute,
+          customerName: job?.customer || "",
+          address: job?.address || "",
         }),
       });
 
