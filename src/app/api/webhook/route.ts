@@ -95,16 +95,30 @@ if (companyUuid) {
 
   console.log("🏢 FULL COMPANY DATA:", JSON.stringify(companyData, null, 2));
 
-customerEmail =
-  companyData?.billing_contact_email ||
-  companyData?.billing_email ||
-  companyData?.billing_contact?.email ||
-  companyData?.billing_contact_details?.email ||
-  companyData?.email ||
-  "";
-}
+  const contactUuid = companyData?.billing_attention || "";
 
-console.log("📧 Customer email fetched:", customerEmail);
+  if (contactUuid) {
+    const contactRes = await fetch(
+      `https://api.servicem8.com/api_1.0/contact/${contactUuid}.json`,
+      {
+        headers: {
+          "X-API-Key": process.env.SERVICEM8_API_KEY!,
+        },
+      }
+    );
+
+    const contactData = await contactRes.json();
+
+    console.log("👤 FULL CONTACT DATA:", JSON.stringify(contactData, null, 2));
+
+    customerEmail =
+      contactData?.email ||
+      contactData?.contact_email ||
+      "";
+
+    console.log("📧 Customer email from billing contact:", customerEmail);
+  }
+}
 } catch (err) {
   console.error("❌ Failed to fetch customer email:", err);
 }
