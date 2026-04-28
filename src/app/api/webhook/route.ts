@@ -41,6 +41,7 @@ export async function POST(req: Request) {
     const jobNumber = session.metadata?.jobNumber || "";
     const jobUuid = session.metadata?.jobUuid || "";
     const markComplete = session.metadata?.markComplete === "yes";
+    const paymentRoute = session.metadata?.paymentRoute || "office";
 
     const amountPaid = (session.amount_total || 0) / 100;
     const paymentStatus = session.payment_status;
@@ -112,9 +113,9 @@ export async function POST(req: Request) {
           body: JSON.stringify({
             related_object_uuid: jobUuid,
             related_object: "job",
-            note: `💳 Payment received via Stripe (£${amountPaid.toFixed(
+            note: `💳 Payment received via Gamma Pay (£${amountPaid.toFixed(
               2
-            )}) | Session ${stripeSessionId}`,
+            )}) | Route: ${paymentRoute} | Session ${stripeSessionId}`,
           }),
         }
       );
