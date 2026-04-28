@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+type PaymentRoute = "office" | "machine_01";
+
 type JobResult = {
   uuid: string;
   jobNumber: string;
@@ -25,6 +27,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [markComplete, setMarkComplete] = useState(false);
+
+  // NEW: where payment should be taken
+  const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("office");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -81,6 +86,12 @@ export default function Home() {
       return;
     }
 
+    // NEW: Machine route exists, but is not active yet
+    if (paymentRoute === "machine_01") {
+      alert("Machine 01 is not connected yet. Please use Office payment for now.");
+      return;
+    }
+
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -92,6 +103,7 @@ export default function Home() {
           jobUuid: job?.uuid || "",
           amount: amountToCharge,
           markComplete,
+          paymentRoute,
         }),
       });
 
@@ -171,6 +183,41 @@ export default function Home() {
             className="w-full p-4 rounded-xl bg-zinc-900 border border-zinc-700"
           />
         )}
+
+        {/* NEW: Payment route selector */}
+        <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-700 space-y-3">
+          <p className="font-bold">Where should this payment be taken?</p>
+
+          <button
+            type="button"
+            onClick={() => setPaymentRoute("office")}
+            className={`w-full p-4 rounded-xl font-bold border ${
+              paymentRoute === "office"
+                ? "bg-gradient-to-r from-purple-600 to-pink-500 border-pink-500"
+                : "bg-black border-zinc-700"
+            }`}
+          >
+            Office — manual card entry
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPaymentRoute("machine_01")}
+            className={`w-full p-4 rounded-xl font-bold border ${
+              paymentRoute === "machine_01"
+                ? "bg-gradient-to-r from-purple-600 to-pink-500 border-pink-500"
+                : "bg-black border-zinc-700"
+            }`}
+          >
+            Machine 01 — card reader
+          </button>
+
+          {paymentRoute === "machine_01" && (
+            <p className="text-sm text-yellow-400">
+              Machine 01 is not connected yet. Use Office payment for now.
+            </p>
+          )}
+        </div>
 
         <label className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900 border border-zinc-700">
           <input
