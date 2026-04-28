@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: Request) {
-  const { amount, jobNumber, jobUuid, markComplete } = await req.json();
+  const { amount, jobNumber, jobUuid, markComplete, paymentRoute } = await req.json();
 
   if (!amount || !jobNumber) {
     return NextResponse.json(
@@ -32,11 +32,12 @@ export async function POST(req: Request) {
     ],
     success_url: `${origin}/?success=true&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/?cancelled=true`,
-    metadata: {
-      jobNumber: String(jobNumber),
-      jobUuid: String(jobUuid || ""),
-      markComplete: markComplete ? "yes" : "no",
-    },
+metadata: {
+  jobNumber: String(jobNumber),
+  jobUuid: String(jobUuid || ""),
+  markComplete: markComplete ? "yes" : "no",
+  paymentRoute: String(paymentRoute || "office"),
+},
   });
 
   return NextResponse.json({ url: session.url });
