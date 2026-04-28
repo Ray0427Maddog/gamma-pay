@@ -17,10 +17,10 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  return new NextResponse("Authentication required", {
+  return new NextResponse("Gamma Pay login", {
     status: 401,
     headers: {
-      "WWW-Authenticate": 'Basic realm="Gamma Pay"',
+      "WWW-Authenticate": 'Basic realm="Gamma Pay (Staff Only)"',
     },
   });
 }
