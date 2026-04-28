@@ -95,11 +95,13 @@ if (companyUuid) {
 
   console.log("🏢 FULL COMPANY DATA:", JSON.stringify(companyData, null, 2));
 
-  customerEmail =
-    companyData?.email ||
-    companyData?.billing_email ||
-    companyData?.contact_email ||
-    "";
+customerEmail =
+  companyData?.billing_contact_email ||
+  companyData?.billing_email ||
+  companyData?.billing_contact?.email ||
+  companyData?.billing_contact_details?.email ||
+  companyData?.email ||
+  "";
 }
 
 console.log("📧 Customer email fetched:", customerEmail);
