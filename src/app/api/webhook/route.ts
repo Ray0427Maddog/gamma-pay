@@ -44,6 +44,7 @@ export async function POST(req: Request) {
     const paymentRoute = session.metadata?.paymentRoute || "office";
     const customerName = session.metadata?.customerName || "";
     const address = session.metadata?.address || "";
+    let customerEmail = "";
 
     const amountPaid = (session.amount_total || 0) / 100;
     const paymentStatus = session.payment_status;
@@ -58,10 +59,35 @@ export async function POST(req: Request) {
       stripeSessionId,
     });
 
-    if (!jobUuid) {
-      console.error("❌ Missing ServiceM8 jobUuid in Stripe metadata");
-      return NextResponse.json({ received: true });
+if (!jobUuid) {
+  console.error("❌ Missing ServiceM8 jobUuid in Stripe metadata");
+  return NextResponse.json({ received: true });
+}
+
+// Fetch job details from ServiceM8 to get customer email
+try {
+  const jobRes = await fetch(
+    `https://api.servicem8.com/api_1.0/job/${jobUuid}.json`,
+    {
+      headers: {
+        "X-API-Key": process.env.SERVICEM8_API_KEY!,
+      },
     }
+  );
+
+  const jobData = await jobRes.json();
+  console.log("📦 FULL JOB DATA:", JSON.stringify(jobData, null, 2));
+
+  customerEmail =
+    jobData?.company_email ||
+    jobData?.billing_email ||
+    jobData?.contact_email ||
+    "";
+
+  console.log("📧 Customer email fetched:", customerEmail);
+} catch (err) {
+  console.error("❌ Failed to fetch customer email:", err);
+}
 
     if (paymentStatus !== "paid") {
       console.error("❌ Stripe session not marked as paid", {
@@ -144,15 +170,16 @@ if (zapierUrl) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        jobNumber,
-        jobUuid,
-        customerName,
-        address,
-        amountPaid,
-        paymentRoute,
-        stripeSessionId,
-      }),
+body: JSON.stringify({
+  jobNumber,
+  jobUuid,
+  customerName,
+  address,
+  customerEmail,
+  amountPaid,
+  paymentRoute,
+  stripeSessionId,
+}),
     });
 
     console.log("📩 Zapier response:", zapierRes.status, await zapierRes.text());
