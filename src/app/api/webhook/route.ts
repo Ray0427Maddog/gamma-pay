@@ -75,16 +75,34 @@ try {
     }
   );
 
-  const jobData = await jobRes.json();
-  console.log("📦 FULL JOB DATA:", JSON.stringify(jobData, null, 2));
+const jobData = await jobRes.json();
+
+console.log("📦 FULL JOB DATA:", JSON.stringify(jobData, null, 2));
+
+const companyUuid = jobData?.company_uuid || "";
+
+if (companyUuid) {
+  const companyRes = await fetch(
+    `https://api.servicem8.com/api_1.0/company/${companyUuid}.json`,
+    {
+      headers: {
+        "X-API-Key": process.env.SERVICEM8_API_KEY!,
+      },
+    }
+  );
+
+  const companyData = await companyRes.json();
+
+  console.log("🏢 FULL COMPANY DATA:", JSON.stringify(companyData, null, 2));
 
   customerEmail =
-    jobData?.company_email ||
-    jobData?.billing_email ||
-    jobData?.contact_email ||
+    companyData?.email ||
+    companyData?.billing_email ||
+    companyData?.contact_email ||
     "";
+}
 
-  console.log("📧 Customer email fetched:", customerEmail);
+console.log("📧 Customer email fetched:", customerEmail);
 } catch (err) {
   console.error("❌ Failed to fetch customer email:", err);
 }
