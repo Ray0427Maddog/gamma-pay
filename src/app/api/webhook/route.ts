@@ -44,6 +44,7 @@ export async function POST(req: Request) {
     const paymentRoute = session.metadata?.paymentRoute || "office";
     const customerName = session.metadata?.customerName || "";
     const address = session.metadata?.address || "";
+
     let customerEmail = "";
 
     const amountPaid = (session.amount_total || 0) / 100;
@@ -59,79 +60,86 @@ export async function POST(req: Request) {
       stripeSessionId,
     });
 
-if (!jobUuid) {
-  console.error("❌ Missing ServiceM8 jobUuid in Stripe metadata");
-  return NextResponse.json({ received: true });
-}
-
-// Fetch job details from ServiceM8 to get customer email
-try {
-  const jobRes = await fetch(
-    `https://api.servicem8.com/api_1.0/job/${jobUuid}.json`,
-    {
-      headers: {
-        "X-API-Key": process.env.SERVICEM8_API_KEY!,
-      },
+    if (!jobUuid) {
+      console.error("❌ Missing ServiceM8 jobUuid in Stripe metadata");
+      return NextResponse.json({ received: true });
     }
-  );
-
-const jobData = await jobRes.json();
-
-console.log("📦 FULL JOB DATA:", JSON.stringify(jobData, null, 2));
-
-const companyUuid = jobData?.company_uuid || "";
-
-if (companyUuid) {
-  const companyRes = await fetch(
-    `https://api.servicem8.com/api_1.0/company/${companyUuid}.json`,
-    {
-      headers: {
-        "X-API-Key": process.env.SERVICEM8_API_KEY!,
-      },
-    }
-  );
-
-  const companyData = await companyRes.json();
-
-  console.log("🏢 FULL COMPANY DATA:", JSON.stringify(companyData, null, 2));
-
-  const contactUuid = companyData?.billing_attention || "";
-
-  if (contactUuid) {
-    const contactRes = await fetch(
-      `https://api.servicem8.com/api_1.0/companycontact/${contactUuid}.json`,
-      {
-        headers: {
-          "X-API-Key": process.env.SERVICEM8_API_KEY!,
-        },
-      }
-    );
-
-    const contactData = await contactRes.json();
-
-    console.log("👤 FULL CONTACT DATA:", JSON.stringify(contactData, null, 2));
-
-    customerEmail =
-      contactData?.email ||
-      contactData?.contact_email ||
-      "";
-
-    console.log("📧 Customer email from billing contact:", customerEmail);
-  }
-}
-} catch (err) {
-  console.error("❌ Failed to fetch customer email:", err);
-}
 
     if (paymentStatus !== "paid") {
       console.error("❌ Stripe session not marked as paid", {
         paymentStatus,
         stripeSessionId,
       });
+
       return NextResponse.json({ received: true });
     }
 
     try {
+      // Fetch job details from ServiceM8
+      const jobRes = await fetch(
+        `https://api.servicem8.com/api_1.0/job/${jobUuid}.json`,
+        {
+          headers: {
+            "X-API-Key": process.env.SERVICEM8_API_KEY!,
+          },
+        }
+      );
+
+      const jobData = await jobRes.json();
+
+      console.log("📦 FULL JOB DATA:", JSON.stringify(jobData, null, 2));
+
+      const companyUuid = jobData?.company_uuid || "";
+
+      if (companyUuid) {
+        const companyRes = await fetch(
+          `https://api.servicem8.com/api_1.0/company/${companyUuid}.json`,
+          {
+            headers: {
+              "X-API-Key": process.env.SERVICEM8_API_KEY!,
+            },
+          }
+        );
+
+        const companyData = await companyRes.json();
+
+        console.log("🏢 FULL COMPANY DATA:", JSON.stringify(companyData, null, 2));
+
+        const billingAttention = companyData?.billing_attention || "";
+
+        const contactsRes = await fetch(
+          `https://api.servicem8.com/api_1.0/companycontact.json?$filter=company_uuid eq ${companyUuid}`,
+          {
+            headers: {
+              "X-API-Key": process.env.SERVICEM8_API_KEY!,
+            },
+          }
+        );
+
+        const contactsData = await contactsRes.json();
+
+        console.log(
+          "👥 FULL COMPANY CONTACTS DATA:",
+          JSON.stringify(contactsData, null, 2)
+        );
+
+        if (Array.isArray(contactsData)) {
+          const billingContact =
+            contactsData.find(
+              (contact) =>
+                String(contact.number || contact.contact_number || contact.id || "") ===
+                String(billingAttention)
+            ) || contactsData[0];
+
+          customerEmail =
+            billingContact?.email ||
+            billingContact?.contact_email ||
+            "";
+
+          console.log("📧 Customer email fetched:", customerEmail);
+        }
+      }
+
       const paymentRes = await fetch(
         "https://api.servicem8.com/api_1.0/jobpayment.json",
         {
@@ -193,63 +201,67 @@ if (companyUuid) {
         console.log("📝 ServiceM8 note created:", noteText);
       }
 
-const zapierUrl = process.env.ZAPIER_PAYMENT_WEBHOOK_URL;
+      const zapierUrl = process.env.ZAPIER_PAYMENT_WEBHOOK_URL;
 
-console.log("Zapier URL configured:", Boolean(zapierUrl));
+      console.log("Zapier URL configured:", Boolean(zapierUrl));
 
-if (zapierUrl) {
-  try {
-    const zapierRes = await fetch(zapierUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-body: JSON.stringify({
-  jobNumber,
-  jobUuid,
-  customerName,
-  address,
-  customerEmail,
-  amountPaid,
-  paymentRoute,
-  stripeSessionId,
-}),
-    });
+      if (zapierUrl) {
+        try {
+          const zapierRes = await fetch(zapierUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              jobNumber,
+              jobUuid,
+              customerName,
+              address,
+              customerEmail,
+              amountPaid,
+              paymentRoute,
+              stripeSessionId,
+            }),
+          });
 
-    console.log("📩 Zapier response:", zapierRes.status, await zapierRes.text());
-    console.log("📩 Zapier webhook sent");
-  } catch (err) {
-    console.error("❌ Failed to send Zapier webhook:", err);
-  }
-}
+          console.log(
+            "📩 Zapier response:",
+            zapierRes.status,
+            await zapierRes.text()
+          );
+          console.log("📩 Zapier webhook sent");
+        } catch (err) {
+          console.error("❌ Failed to send Zapier webhook:", err);
+        }
+      }
 
-if (markComplete) {
-  const completeRes = await fetch(
-    `https://api.servicem8.com/api_1.0/job/${jobUuid}.json`,
-    {
-      method: "POST",
-      headers: {
-        "X-API-Key": process.env.SERVICEM8_API_KEY!,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: "Completed",
-        completion_date: serviceM8Timestamp(),
-      }),
-    }
-  );
+      if (markComplete) {
+        const completeRes = await fetch(
+          `https://api.servicem8.com/api_1.0/job/${jobUuid}.json`,
+          {
+            method: "POST",
+            headers: {
+              "X-API-Key": process.env.SERVICEM8_API_KEY!,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              status: "Completed",
+              completion_date: serviceM8Timestamp(),
+            }),
+          }
+        );
 
-  const completeText = await completeRes.text();
+        const completeText = await completeRes.text();
 
-  if (!completeRes.ok) {
-    console.error("❌ Failed to mark ServiceM8 job complete:", {
-      status: completeRes.status,
-      response: completeText,
-    });
-  } else {
-    console.log("✅ ServiceM8 job completion request sent:", completeText);
-  }
-}
+        if (!completeRes.ok) {
+          console.error("❌ Failed to mark ServiceM8 job complete:", {
+            status: completeRes.status,
+            response: completeText,
+          });
+        } else {
+          console.log("✅ ServiceM8 job completion request sent:", completeText);
+        }
+      }
     } catch (err) {
       console.error("❌ ServiceM8 webhook handling error:", err);
     }
