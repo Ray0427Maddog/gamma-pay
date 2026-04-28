@@ -42,6 +42,8 @@ export async function POST(req: Request) {
     const jobUuid = session.metadata?.jobUuid || "";
     const markComplete = session.metadata?.markComplete === "yes";
     const paymentRoute = session.metadata?.paymentRoute || "office";
+    const customerName = session.metadata?.customerName || "";
+    const address = session.metadata?.address || "";
 
     const amountPaid = (session.amount_total || 0) / 100;
     const paymentStatus = session.payment_status;
@@ -131,11 +133,13 @@ export async function POST(req: Request) {
         console.log("📝 ServiceM8 note created:", noteText);
       }
 
-      const zapierUrl = process.env.ZAPIER_PAYMENT_WEBHOOK_URL;
+const zapierUrl = process.env.ZAPIER_PAYMENT_WEBHOOK_URL;
+
+console.log("Zapier URL configured:", Boolean(zapierUrl));
 
 if (zapierUrl) {
   try {
-    await fetch(zapierUrl, {
+    const zapierRes = await fetch(zapierUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -143,12 +147,15 @@ if (zapierUrl) {
       body: JSON.stringify({
         jobNumber,
         jobUuid,
+        customerName,
+        address,
         amountPaid,
         paymentRoute,
         stripeSessionId,
       }),
     });
 
+    console.log("📩 Zapier response:", zapierRes.status, await zapierRes.text());
     console.log("📩 Zapier webhook sent");
   } catch (err) {
     console.error("❌ Failed to send Zapier webhook:", err);
