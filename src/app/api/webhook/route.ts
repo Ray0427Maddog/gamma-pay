@@ -131,6 +131,30 @@ export async function POST(req: Request) {
         console.log("📝 ServiceM8 note created:", noteText);
       }
 
+      const zapierUrl = process.env.ZAPIER_PAYMENT_WEBHOOK_URL;
+
+if (zapierUrl) {
+  try {
+    await fetch(zapierUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        jobNumber,
+        jobUuid,
+        amountPaid,
+        paymentRoute,
+        stripeSessionId,
+      }),
+    });
+
+    console.log("📩 Zapier webhook sent");
+  } catch (err) {
+    console.error("❌ Failed to send Zapier webhook:", err);
+  }
+}
+
 if (markComplete) {
   const completeRes = await fetch(
     `https://api.servicem8.com/api_1.0/job/${jobUuid}.json`,
