@@ -74,6 +74,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
+const freshSession = await stripe.checkout.sessions.retrieve(stripeSessionId);
+
+if (freshSession.metadata?.gammaPayProcessed === "yes") {
+  console.log("⚠️ Gamma Pay already processed this Stripe session:", stripeSessionId);
+  return NextResponse.json({ received: true });
+}
     try {
       // Fetch job details from ServiceM8
       const jobRes = await fetch(
@@ -235,6 +241,14 @@ console.log("📧 Customer email fetched:", customerEmail);
             await zapierRes.text()
           );
           console.log("📩 Zapier webhook sent");
+          await stripe.checkout.sessions.update(stripeSessionId, {
+  metadata: {
+    ...freshSession.metadata,
+    gammaPayProcessed: "yes",
+  },
+});
+
+console.log("✅ Stripe session marked as Gamma Pay processed");
         } catch (err) {
           console.error("❌ Failed to send Zapier webhook:", err);
         }
