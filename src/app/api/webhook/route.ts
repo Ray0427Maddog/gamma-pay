@@ -124,18 +124,21 @@ export async function POST(req: Request) {
         );
 
         if (Array.isArray(contactsData)) {
-          const billingContact =
-            contactsData.find(
-              (contact) =>
-                String(contact.number || contact.contact_number || contact.id || "") ===
-                String(billingAttention)
-            ) || contactsData[0];
+const billingContact =
+  contactsData.find(
+    (contact) =>
+      contact.type === "BILLING" &&
+      contact.active === 1 &&
+      contact.email
+  ) ||
+  contactsData.find(
+    (contact) =>
+      contact.is_primary_contact === "1" &&
+      contact.email
+  ) ||
+  contactsData.find((contact) => contact.email);
 
-          customerEmail =
-            billingContact?.email ||
-            billingContact?.contact_email ||
-            "";
-
+customerEmail = billingContact?.email || "";
           console.log("📧 Customer email fetched:", customerEmail);
         }
       }
