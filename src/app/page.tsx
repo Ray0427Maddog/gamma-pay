@@ -236,7 +236,7 @@ if (paymentRoute === "machine_01") {
                 : "bg-black border-zinc-700"
             }`}
           >
-            Machine 01 — card reader
+            Ray — card reader
           </button>
 
 {paymentRoute === "machine_01" && (
