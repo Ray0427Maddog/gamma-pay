@@ -223,11 +223,38 @@ async function chargeCard() {
             Machine 01 — card reader
           </button>
 
-          {paymentRoute === "machine_01" && (
-            <p className="text-sm text-yellow-400">
-              Machine 01 will send the payment directly to the card reader.
-            </p>
-          )}
+{paymentRoute === "machine_01" && (
+  <div className="space-y-2">
+    <p className="text-sm text-yellow-400">
+      Payment will be sent to the card reader.
+    </p>
+
+    <button
+      onClick={async () => {
+        try {
+          const res = await fetch("/api/terminal/cancel", {
+            method: "POST",
+          });
+
+          const data = await res.json();
+
+          if (!res.ok || data.success === false) {
+            alert(data.error || "Could not cancel payment");
+            return;
+          }
+
+          alert("Card machine payment cancelled");
+        } catch (err) {
+          console.error(err);
+          alert("Error cancelling payment");
+        }
+      }}
+      className="w-full p-3 rounded-xl bg-red-600 font-bold"
+    >
+      Cancel card machine payment
+    </button>
+  </div>
+)}
         </div>
 
         <label className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900 border border-zinc-700">
