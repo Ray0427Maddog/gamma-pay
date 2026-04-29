@@ -221,24 +221,51 @@ export async function POST(req: Request) {
     });
   }
 
-  if (event.type === "payment_intent.succeeded") {
-    const paymentIntent = event.data.object as Stripe.PaymentIntent;
+if (event.type === "payment_intent.succeeded") {
+  const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
-    if (paymentIntent.metadata?.paymentRoute !== "machine_01") {
-      return NextResponse.json({ received: true });
-    }
-
-    await processGammaPayPayment({
-      jobNumber: paymentIntent.metadata?.jobNumber || "",
-      jobUuid: paymentIntent.metadata?.jobUuid || "",
-      markComplete: paymentIntent.metadata?.markComplete === "yes",
-      paymentRoute: paymentIntent.metadata?.paymentRoute || "machine_01",
-      customerName: paymentIntent.metadata?.customerName || "",
-      address: paymentIntent.metadata?.address || "",
-      amountPaid: paymentIntent.amount_received / 100,
-      stripeReference: paymentIntent.id,
-    });
+  if (paymentIntent.metadata?.paymentRoute !== "machine_01") {
+    return NextResponse.json({ received: true });
   }
 
+  // 🔁 Re-fetch to get latest metadata (important for retries)
+  const freshPaymentIntent = await stripe.paymentIntents.retrieve(
+    paymentIntent.id
+  );
+
+  // 🚫 Prevent duplicate processing
+  if (freshPaymentIntent.metadata?.gammaPayProcessed === "yes") {
+    console.log(
+      "⚠️ Gamma Pay already processed this PaymentIntent:",
+      paymentIntent.id
+    );
+    return NextResponse.json({ received: true });
+  }
+
+  // ✅ Process payment
+  await processGammaPayPayment({
+    jobNumber: paymentIntent.metadata?.jobNumber || "",
+    jobUuid: paymentIntent.metadata?.jobUuid || "",
+    markComplete: paymentIntent.metadata?.markComplete === "yes",
+    paymentRoute: paymentIntent.metadata?.paymentRoute || "machine_01",
+    customerName: paymentIntent.metadata?.customerName || "",
+    address: paymentIntent.metadata?.address || "",
+    amountPaid: paymentIntent.amount_received / 100,
+    stripeReference: paymentIntent.id,
+  });
+
+  // 🏷️ Mark as processed to prevent future duplicates
+  await stripe.paymentIntents.update(paymentIntent.id, {
+    metadata: {
+      ...freshPaymentIntent.metadata,
+      gammaPayProcessed: "yes",
+    },
+  });
+
+  console.log(
+    "✅ PaymentIntent marked as Gamma Pay processed:",
+    paymentIntent.id
+  );
+}
   return NextResponse.json({ received: true });
 }
