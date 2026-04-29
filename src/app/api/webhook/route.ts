@@ -202,24 +202,40 @@ export async function POST(req: Request) {
     );
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
+if (event.type === "checkout.session.completed") {
+  const session = event.data.object as Stripe.Checkout.Session;
 
-    if (session.payment_status !== "paid") {
-      return NextResponse.json({ received: true });
-    }
-
-    await processGammaPayPayment({
-      jobNumber: session.metadata?.jobNumber || "",
-      jobUuid: session.metadata?.jobUuid || "",
-      markComplete: session.metadata?.markComplete === "yes",
-      paymentRoute: session.metadata?.paymentRoute || "office",
-      customerName: session.metadata?.customerName || "",
-      address: session.metadata?.address || "",
-      amountPaid: (session.amount_total || 0) / 100,
-      stripeReference: session.id,
-    });
+  if (session.payment_status !== "paid") {
+    return NextResponse.json({ received: true });
   }
+
+  const freshSession = await stripe.checkout.sessions.retrieve(session.id);
+
+  if (freshSession.metadata?.gammaPayProcessed === "yes") {
+    console.log("⚠️ Gamma Pay already processed this Checkout Session:", session.id);
+    return NextResponse.json({ received: true });
+  }
+
+  await processGammaPayPayment({
+    jobNumber: session.metadata?.jobNumber || "",
+    jobUuid: session.metadata?.jobUuid || "",
+    markComplete: session.metadata?.markComplete === "yes",
+    paymentRoute: session.metadata?.paymentRoute || "office",
+    customerName: session.metadata?.customerName || "",
+    address: session.metadata?.address || "",
+    amountPaid: (session.amount_total || 0) / 100,
+    stripeReference: session.id,
+  });
+
+  await stripe.checkout.sessions.update(session.id, {
+    metadata: {
+      ...freshSession.metadata,
+      gammaPayProcessed: "yes",
+    },
+  });
+
+  console.log("✅ Checkout Session marked as Gamma Pay processed:", session.id);
+}
 
 if (event.type === "payment_intent.succeeded") {
   const paymentIntent = event.data.object as Stripe.PaymentIntent;
