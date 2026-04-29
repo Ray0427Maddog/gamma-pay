@@ -96,6 +96,10 @@ async function chargeCard() {
         ? "/api/terminal/charge"
         : "/api/checkout";
 
+        if (paymentRoute === "machine_01") {
+  setMachineStatus("waiting");
+}
+
     const res = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -121,8 +125,6 @@ async function chargeCard() {
     }
 
 if (paymentRoute === "machine_01") {
-  setMachineStatus("waiting");
-
   setTimeout(async () => {
     await findJob();
     setMachineStatus("success");
@@ -130,7 +132,7 @@ if (paymentRoute === "machine_01") {
     setTimeout(() => {
       setMachineStatus("idle");
     }, 5000);
-  }, 6000);
+  }, 8000);
 
   return;
 }
@@ -270,7 +272,7 @@ if (paymentRoute === "machine_01") {
   </div>
 )}
         </div>
-        
+
 {machineStatus === "waiting" && (
   <div className="p-4 rounded-xl bg-yellow-600 text-black text-center font-bold">
     💳 Waiting for card payment...
