@@ -105,28 +105,35 @@ async function processGammaPayPayment({
       return;
     }
 
-    const noteRes = await fetch("https://api.servicem8.com/api_1.0/note.json", {
-      method: "POST",
-      headers: {
-        "X-API-Key": process.env.SERVICEM8_API_KEY!,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        related_object_uuid: jobUuid,
-        related_object: "job",
-        note: `💳 Payment received via Gamma Pay (£${amountPaid.toFixed(
-          2
-        )}) | Route: ${paymentRoute} | Ref ${stripeReference}`,
-      }),
-    });
+const noteBody = {
+  related_object_uuid: jobUuid,
+  related_object: "job",
+  note: `💳 Payment received via Gamma Pay (£${amountPaid.toFixed(
+    2
+  )}) | Route: ${paymentRoute} | Ref ${stripeReference}`,
+};
 
-    if (!noteRes.ok) {
-      console.error("❌ Failed to create ServiceM8 note:", {
-        status: noteRes.status,
-        response: await noteRes.text(),
-      });
-    }
+console.log("📝 Creating ServiceM8 note:", noteBody);
 
+const noteRes = await fetch("https://api.servicem8.com/api_1.0/note.json", {
+  method: "POST",
+  headers: {
+    "X-API-Key": process.env.SERVICEM8_API_KEY!,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(noteBody),
+});
+
+const noteText = await noteRes.text();
+
+if (!noteRes.ok) {
+  console.error("❌ Failed to create ServiceM8 note:", {
+    status: noteRes.status,
+    response: noteText,
+  });
+} else {
+  console.log("✅ ServiceM8 note created:", noteText);
+}
     const zapierUrl = process.env.ZAPIER_PAYMENT_WEBHOOK_URL;
 
     if (zapierUrl) {
