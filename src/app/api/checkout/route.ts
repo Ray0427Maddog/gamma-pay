@@ -33,7 +33,7 @@ export async function POST(req: Request) {
           product_data: {
             name: `ServiceM8 Job #${jobNumber}`,
           },
-          unit_amount: Math.round(Number(amount) * 100),
+          unit_amount: Math.round(Number(amount)),
         },
         quantity: 1,
       },
