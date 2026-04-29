@@ -28,6 +28,10 @@ export default function Home() {
   const [success, setSuccess] = useState(false);
   const [markComplete, setMarkComplete] = useState(false);
 
+  const [machineStatus, setMachineStatus] = useState<
+  "idle" | "waiting" | "success"
+>("idle");
+
   // NEW: where payment should be taken
   const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("office");
 
@@ -116,10 +120,20 @@ async function chargeCard() {
       return;
     }
 
-    if (paymentRoute === "machine_01") {
-      alert("Payment sent to card machine");
-      return;
-    }
+if (paymentRoute === "machine_01") {
+  setMachineStatus("waiting");
+
+  setTimeout(async () => {
+    await findJob();
+    setMachineStatus("success");
+
+    setTimeout(() => {
+      setMachineStatus("idle");
+    }, 5000);
+  }, 6000);
+
+  return;
+}
 
     if (data.url) {
       window.location.href = data.url;
@@ -256,6 +270,18 @@ async function chargeCard() {
   </div>
 )}
         </div>
+        
+{machineStatus === "waiting" && (
+  <div className="p-4 rounded-xl bg-yellow-600 text-black text-center font-bold">
+    💳 Waiting for card payment...
+  </div>
+)}
+
+{machineStatus === "success" && (
+  <div className="p-4 rounded-xl bg-green-600 text-white text-center font-bold">
+    ✅ Payment successful — ServiceM8 updated
+  </div>
+)}
 
         <label className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900 border border-zinc-700">
           <input
