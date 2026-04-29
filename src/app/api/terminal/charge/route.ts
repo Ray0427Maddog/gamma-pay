@@ -7,14 +7,15 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const {
-      amount,
-      jobNumber,
-      jobUuid,
-      customerName,
-      address,
-      customerEmail,
-    } = body;
+const {
+  amount,
+  jobNumber,
+  jobUuid,
+  markComplete,
+  customerName,
+  address,
+  customerEmail,
+} = body;
 
     if (!amount || !jobNumber || !jobUuid) {
       return NextResponse.json(
@@ -27,14 +28,15 @@ export async function POST(req: Request) {
       amount: Number(amount),
       currency: "gbp",
       payment_method_types: ["card_present"],
-      metadata: {
-        jobNumber: String(jobNumber),
-        jobUuid: String(jobUuid),
-        paymentRoute: "machine_01",
-        customerName: customerName ? String(customerName) : "",
-        address: address ? String(address) : "",
-        customerEmail: customerEmail ? String(customerEmail) : "",
-      },
+metadata: {
+  jobNumber: String(jobNumber),
+  jobUuid: String(jobUuid),
+  paymentRoute: "machine_01",
+  markComplete: markComplete ? "yes" : "no",
+  customerName: customerName ? String(customerName) : "",
+  address: address ? String(address) : "",
+  customerEmail: customerEmail ? String(customerEmail) : "",
+},
     });
 
     const reader = await stripe.terminal.readers.processPaymentIntent(
