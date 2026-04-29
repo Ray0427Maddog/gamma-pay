@@ -75,53 +75,62 @@ export default function Home() {
     }
   }
 
-  async function chargeCard() {
-    if (!jobNumber.trim() || !amountToCharge || amountToCharge <= 0) {
-      alert("Enter job number and amount");
-      return;
-    }
-
-    if (isPaid) {
-      alert("This job appears to be fully paid already");
-      return;
-    }
-
-    // NEW: Machine route exists, but is not active yet
-    if (paymentRoute === "machine_01") {
-      alert("Machine 01 is not connected yet. Please use Office payment for now.");
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          jobNumber,
-          jobUuid: job?.uuid || "",
-          amount: amountToCharge,
-          markComplete,
-          paymentRoute,
-          customerName: job?.customer || "",
-          address: job?.address || "",
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data.error || "Could not start payment");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Could not start payment");
-    }
+async function chargeCard() {
+  if (!jobNumber.trim() || !amountToCharge || amountToCharge <= 0) {
+    alert("Enter job number and amount");
+    return;
   }
 
+  if (isPaid) {
+    alert("This job appears to be fully paid already");
+    return;
+  }
+
+  try {
+    const endpoint =
+      paymentRoute === "machine_01"
+        ? "/api/terminal/charge"
+        : "/api/checkout";
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        jobNumber,
+        jobUuid: job?.uuid || "",
+        amount: Math.round(amountToCharge * 100),
+        markComplete,
+        paymentRoute,
+        customerName: job?.customer || "",
+        address: job?.address || "",
+        customerEmail: "",
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.success === false) {
+      alert(data.error || "Could not start payment");
+      return;
+    }
+
+    if (paymentRoute === "machine_01") {
+      alert("Payment sent to card machine");
+      return;
+    }
+
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert(data.error || "Could not start payment");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Could not start payment");
+  }
+}
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
       <h1 className="text-3xl font-bold mb-6 text-pink-500">
@@ -216,7 +225,7 @@ export default function Home() {
 
           {paymentRoute === "machine_01" && (
             <p className="text-sm text-yellow-400">
-              Machine 01 is not connected yet. Use Office payment for now.
+              Machine 01 will send the payment directly to the card reader.
             </p>
           )}
         </div>
