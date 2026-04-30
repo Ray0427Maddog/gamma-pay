@@ -33,6 +33,10 @@ export default function Home() {
   "idle" | "waiting" | "success"
 >("idle");
 
+const [gcMatches, setGcMatches] = useState<any[]>([]);
+const [gcLoading, setGcLoading] = useState(false);
+const [gcError, setGcError] = useState("");
+
   // NEW: where payment should be taken
   const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("office");
 
@@ -80,6 +84,35 @@ export default function Home() {
     }
   }
 
+  async function searchGoCardless() {
+  if (!job) return;
+
+  setGcLoading(true);
+  setGcError("");
+  setGcMatches([]);
+
+  try {
+    const query = job.customer || "";
+
+    const res = await fetch(
+      `/api/gocardless/search?query=${encodeURIComponent(query)}`
+    );
+
+    const data = await res.json();
+
+    if (!res.ok || data.success === false) {
+      setGcError(data.error || "Search failed");
+      return;
+    }
+
+    setGcMatches(data.matches || []);
+  } catch (err) {
+    console.error(err);
+    setGcError("Could not search GoCardless");
+  } finally {
+    setGcLoading(false);
+  }
+}
   async function ensureJobLoaded(): Promise<JobResult | null> {
   if (job?.uuid) return job;
 
@@ -355,6 +388,48 @@ if (paymentRoute === "machine_01") {
   </div>
 )}
         </div>
+
+        {job && (
+  <button
+    onClick={searchGoCardless}
+    className="w-full p-4 rounded-xl bg-blue-600 font-bold"
+  >
+    Charge £55 HeatCover+ Excess
+  </button>
+)}
+
+{gcLoading && (
+  <div className="p-3 bg-yellow-600 rounded-xl text-black">
+    Searching GoCardless...
+  </div>
+)}
+
+{gcError && (
+  <div className="p-3 bg-red-600 rounded-xl">
+    {gcError}
+  </div>
+)}
+
+{gcMatches.length > 0 && (
+  <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-700 space-y-2">
+    <p className="font-bold">GoCardless Match</p>
+
+    {gcMatches.map((c, i) => (
+      <div key={i} className="p-3 bg-black rounded-xl">
+        <p>{c.given_name} {c.family_name}</p>
+        <p className="text-sm text-zinc-400">{c.email}</p>
+
+        {c.hasActiveMandate ? (
+          <p className="text-green-400">Mandate active</p>
+        ) : (
+          <p className="text-yellow-400">
+            Mandate not active ({c.mandates?.[0]?.status})
+          </p>
+        )}
+      </div>
+    ))}
+  </div>
+)}
 
 {machineStatus === "waiting" && (
   <div className="p-4 rounded-xl bg-yellow-600 text-black text-center font-bold">
