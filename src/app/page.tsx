@@ -246,7 +246,7 @@ if (paymentRoute === "machine_01") {
           </div>
         )}
 
-        {!totalAmount && (
+        {!isPaid && (
           <input
             type="number"
             placeholder="Manual Amount (£)"
