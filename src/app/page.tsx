@@ -8,6 +8,7 @@ type JobResult = {
   uuid: string;
   jobNumber: string;
   customer: string;
+  customerEmail?: string;
   address: string;
   status: string;
   totalAmount: number;
@@ -92,7 +93,13 @@ const [gcError, setGcError] = useState("");
   setGcMatches([]);
 
   try {
-    const query = job.customer || "";
+    const query = job.customerEmail || "";
+
+    if (!query) {
+  setGcError("No customer email found on this job");
+  setGcLoading(false);
+  return;
+}
 
     const res = await fetch(
       `/api/gocardless/search?query=${encodeURIComponent(query)}`
