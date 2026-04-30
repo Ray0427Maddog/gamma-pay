@@ -39,6 +39,7 @@ const [gcLoading, setGcLoading] = useState(false);
 const [gcError, setGcError] = useState("");
 const [gcCharging, setGcCharging] = useState(false);
 const [gcSuccess, setGcSuccess] = useState("");
+const [gcSearched, setGcSearched] = useState(false);
 
   // NEW: where payment should be taken
   const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("office");
@@ -88,6 +89,8 @@ const [gcSuccess, setGcSuccess] = useState("");
   }
 
   async function searchGoCardless() {
+    setGcSearched(false);
+
   if (!job?.customerEmail) {
   setGcError("No customer email found on this job");
   setGcLoading(false);
@@ -120,6 +123,7 @@ const [gcSuccess, setGcSuccess] = useState("");
     }
 
     setGcMatches(data.matches || []);
+    setGcSearched(true);
   } catch (err) {
     console.error(err);
     setGcError("Could not search GoCardless");
@@ -470,6 +474,12 @@ if (paymentRoute === "machine_01") {
 {gcSuccess && (
   <div className="p-3 bg-green-600 rounded-xl">
     {gcSuccess}
+  </div>
+)}
+
+{gcSearched && !gcLoading && gcMatches.length === 0 && !gcError && (
+  <div className="p-3 bg-zinc-800 border border-zinc-700 rounded-xl">
+    No GoCardless customer found for this ServiceM8 billing email.
   </div>
 )}
 
