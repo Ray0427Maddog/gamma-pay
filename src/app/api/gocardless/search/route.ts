@@ -23,7 +23,7 @@ export async function GET(req: Request) {
 
     // Search customers
     const res = await fetch(
-      `https://api.gocardless.com/customers?email=${encodeURIComponent(query)}&limit=10`,
+      `https://api.gocardless.com/customers?limit=500`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
