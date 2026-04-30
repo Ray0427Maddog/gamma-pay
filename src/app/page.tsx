@@ -86,14 +86,19 @@ const [gcError, setGcError] = useState("");
   }
 
   async function searchGoCardless() {
-  if (!job) return;
+  if (!job?.customerEmail) {
+  setGcError("No customer email found on this job");
+  setGcLoading(false);
+  return;
+}
 
   setGcLoading(true);
   setGcError("");
   setGcMatches([]);
 
   try {
-    const query = job.customerEmail || "";
+    console.log(job);
+    const query = job?.customerEmail || "";
 
     if (!query) {
   setGcError("No customer email found on this job");
