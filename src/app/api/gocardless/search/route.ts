@@ -80,9 +80,13 @@ const matchesWithMandates = await Promise.all(
   })
 );
 
+const activeMatches = matchesWithMandates.filter(
+  (customer: any) => customer.hasActiveMandate
+);
+
 return NextResponse.json({
   success: true,
-  matches: matchesWithMandates,
+  matches: activeMatches,
 });
   } catch (err: any) {
     return NextResponse.json(
