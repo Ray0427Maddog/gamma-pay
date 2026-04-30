@@ -80,13 +80,18 @@ const matchesWithMandates = await Promise.all(
   })
 );
 
-const activeMatches = matchesWithMandates.filter(
-  (customer: any) => customer.hasActiveMandate
-);
+const activeMatches = matchesWithMandates
+  .filter((customer: any) => customer.hasActiveMandate)
+  .sort((a: any, b: any) => {
+    const aDate = new Date(a.mandates?.find((m: any) => m.id === a.activeMandateId)?.created_at || a.created_at || 0).getTime();
+    const bDate = new Date(b.mandates?.find((m: any) => m.id === b.activeMandateId)?.created_at || b.created_at || 0).getTime();
+
+    return bDate - aDate;
+  });
 
 return NextResponse.json({
   success: true,
-  matches: activeMatches,
+  matches: activeMatches.slice(0, 1),
 });
   } catch (err: any) {
     return NextResponse.json(
