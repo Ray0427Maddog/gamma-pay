@@ -88,31 +88,22 @@ const [gcSearched, setGcSearched] = useState(false);
     }
   }
 
-  async function searchGoCardless() {
-    setGcSearched(false);
-
-  if (!job?.customerEmail) {
-  setGcError("No customer email found on this job");
-  setGcLoading(false);
-  return;
-}
-
+async function searchGoCardless() {
   setGcLoading(true);
   setGcError("");
+  setGcSuccess("");
   setGcMatches([]);
+  setGcSearched(false);
+
+  if (!job?.customerEmail) {
+    setGcError("No customer email found on this job");
+    setGcLoading(false);
+    return;
+  }
 
   try {
-    console.log(job);
-    const query = job?.customerEmail || "";
-
-    if (!query) {
-  setGcError("No customer email found on this job");
-  setGcLoading(false);
-  return;
-}
-
     const res = await fetch(
-      `/api/gocardless/search?query=${encodeURIComponent(query)}`
+      `/api/gocardless/search?query=${encodeURIComponent(job.customerEmail)}`
     );
 
     const data = await res.json();
