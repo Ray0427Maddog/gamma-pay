@@ -53,6 +53,7 @@ export async function GET(req: Request) {
 
     let customer = "Unknown customer";
     let billingAddress = job.billing_address || "";
+    let customerEmail = job.email || "";
 
     if (job.company_uuid) {
       try {
@@ -67,12 +68,28 @@ export async function GET(req: Request) {
           job.company_name ||
           job.billing_name ||
           "Unknown customer";
+          customerEmail = client.email || job.email || "";
 
         billingAddress =
           client.billing_address || client.address || billingAddress;
       } catch (err) {
         console.error("Client lookup failed:", err);
       }
+      // 🔒 SAFE fallback — only runs if email still empty
+if (!customerEmail) {
+  try {
+    const contacts = await serviceM8Get(
+      `jobcontact.json?$filter=job_uuid eq '${job.uuid}'`,
+      apiKey
+    );
+
+    if (Array.isArray(contacts) && contacts.length > 0) {
+      customerEmail = contacts[0].email || customerEmail;
+    }
+  } catch (err) {
+    console.error("Contact lookup failed:", err);
+  }
+}
     }
 
     let payments: any[] = [];
@@ -101,6 +118,7 @@ export async function GET(req: Request) {
       uuid: job.uuid,
       jobNumber: job.generated_job_id,
       customer,
+      customerEmail,
       address: job.job_address || billingAddress || "",
       billingAddress,
       status: job.status || "",
