@@ -161,6 +161,7 @@ try {
     });
 
     const data = await res.json();
+    const paymentIntentId = data.paymentIntentId;
 
     if (!res.ok || data.success === false) {
       alert(data.error || "Could not start payment");
@@ -168,10 +169,48 @@ try {
     }
 
 if (paymentRoute === "machine_01") {
-  setTimeout(async () => {
-    await findJob();
-    setMachineStatus("idle");
-  }, 8000);
+  if (!paymentIntentId) {
+    alert("Missing payment reference from Stripe");
+    return;
+  }
+
+  setMachineStatus("waiting");
+
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(
+        `/api/terminal/status?paymentIntentId=${paymentIntentId}`
+      );
+      const statusData = await res.json();
+
+      if (!res.ok || statusData.success === false) {
+        console.error("Status check failed", statusData);
+        return;
+      }
+
+      const status = statusData.status;
+
+      if (status === "succeeded") {
+        clearInterval(interval);
+
+        await findJob();
+        setMachineStatus("success");
+
+        setTimeout(() => {
+          setMachineStatus("idle");
+        }, 5000);
+      }
+
+      if (status === "canceled") {
+        clearInterval(interval);
+        setMachineStatus("idle");
+        alert("Payment cancelled on terminal");
+      }
+
+    } catch (err) {
+      console.error("Polling error", err);
+    }
+  }, 3000);
 
   return;
 }
