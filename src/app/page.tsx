@@ -40,6 +40,7 @@ const [gcError, setGcError] = useState("");
 const [gcCharging, setGcCharging] = useState(false);
 const [gcSuccess, setGcSuccess] = useState("");
 const [gcSearched, setGcSearched] = useState(false);
+const [selectedGcCustomer, setSelectedGcCustomer] = useState<any | null>(null);
 
   // NEW: where payment should be taken
   const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("office");
@@ -53,8 +54,13 @@ const [gcSearched, setGcSearched] = useState(false);
   const paidAmount = Number(job?.paidAmount || 0);
   const outstandingAmount = Number(job?.outstandingAmount || 0);
 
-  const amountToCharge =
-    outstandingAmount > 0 ? outstandingAmount : Number(manualAmount || 0);
+const isGcMode = Boolean(selectedGcCustomer);
+
+const amountToCharge = isGcMode
+  ? 55
+  : outstandingAmount > 0
+  ? outstandingAmount
+  : Number(manualAmount || 0);
 
   const isPaid = Boolean(job?.isFullyPaid);
 
@@ -94,6 +100,7 @@ async function searchGoCardless() {
   setGcSuccess("");
   setGcMatches([]);
   setGcSearched(false);
+  setSelectedGcCustomer(null);
 
   if (!job?.customerEmail) {
     setGcError("No customer email found on this job");
@@ -487,13 +494,13 @@ if (paymentRoute === "machine_01") {
       <>
         <p className="text-green-400">Mandate active</p>
 
-        <button
-          onClick={() => chargeGoCardlessExcess(c)}
-          disabled={gcCharging}
-          className="mt-3 w-full p-3 rounded-xl bg-green-600 font-bold disabled:opacity-50"
-        >
-          {gcCharging ? "Requesting £55..." : "Confirm £55 Excess Charge"}
-        </button>
+<button
+  onClick={() => setSelectedGcCustomer(c)}
+  disabled={gcCharging}
+  className="mt-3 w-full p-3 rounded-xl bg-green-600 font-bold disabled:opacity-50"
+>
+  Select for £55 Excess Charge
+</button>
       </>
     ) : (
       <p className="text-yellow-400">
