@@ -25,6 +25,7 @@ export default function Home() {
   const [manualAmount, setManualAmount] = useState("");
   const [job, setJob] = useState<JobResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
   const [success, setSuccess] = useState(false);
   const [markComplete, setMarkComplete] = useState(false);
 
@@ -79,6 +80,30 @@ export default function Home() {
     }
   }
 
+  async function ensureJobLoaded(): Promise<JobResult | null> {
+  if (job?.uuid) return job;
+
+  try {
+    const res = await fetch(
+      `/api/servicem8/job?jobNumber=${encodeURIComponent(jobNumber)}`
+    );
+
+    const data = await res.json();
+
+    if (!res.ok || !data?.uuid) {
+      alert(data?.error || "Job not found");
+      return null;
+    }
+
+    setJob(data);
+    return data;
+  } catch (err) {
+    console.error(err);
+    alert("Could not fetch job");
+    return null;
+  }
+}
+
 async function chargeCard() {
   if (!jobNumber.trim() || !amountToCharge || amountToCharge <= 0) {
     alert("Enter job number and amount");
@@ -90,7 +115,25 @@ async function chargeCard() {
     return;
   }
 
-  try {
+try {
+  setProcessingPayment(true);
+
+  const jobForPayment = await ensureJobLoaded();
+
+  if (!jobForPayment?.uuid) {
+    return;
+  }
+
+  const chargeAmount =
+    Number(manualAmount || 0) > 0
+      ? Number(manualAmount)
+      : Number(jobForPayment.outstandingAmount || 0);
+
+  if (!chargeAmount || chargeAmount <= 0) {
+    alert("Enter an amount to charge");
+    return;
+  }
+
     const endpoint =
       paymentRoute === "machine_01"
         ? "/api/terminal/charge"
@@ -106,13 +149,13 @@ async function chargeCard() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        jobNumber,
-        jobUuid: job?.uuid || "",
-        amount: Math.round(amountToCharge * 100),
+        jobNumber: jobForPayment.jobNumber || jobNumber,
+        jobUuid: jobForPayment.uuid,
+        amount: Math.round(chargeAmount * 100),
         markComplete,
         paymentRoute,
-        customerName: job?.customer || "",
-        address: job?.address || "",
+        customerName: jobForPayment.customer || "",
+        address: jobForPayment.address || "",
         customerEmail: "",
       }),
     });
@@ -145,7 +188,9 @@ if (paymentRoute === "machine_01") {
   } catch (err) {
     console.error(err);
     alert("Could not start payment");
-  }
+  } finally {
+  setProcessingPayment(false);
+ }
 }
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
@@ -297,14 +342,18 @@ if (paymentRoute === "machine_01") {
 
         <button
           onClick={chargeCard}
-          disabled={isPaid}
+          disabled={isPaid || processingPayment}
           className={`w-full p-4 rounded-xl font-bold ${
             isPaid
               ? "bg-gray-600 cursor-not-allowed"
               : "bg-gradient-to-r from-purple-600 to-pink-500"
           }`}
         >
-          {isPaid ? "Already Paid" : `Charge £${amountToCharge.toFixed(2)}`}
+          {isPaid
+  ? "Already Paid"
+  : processingPayment
+  ? "Processing..."
+  : `Charge £${amountToCharge.toFixed(2)}`}
         </button>
       </div>
     </div>
