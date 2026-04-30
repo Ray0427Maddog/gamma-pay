@@ -170,11 +170,7 @@ try {
 if (paymentRoute === "machine_01") {
   setTimeout(async () => {
     await findJob();
-    setMachineStatus("success");
-
-    setTimeout(() => {
-      setMachineStatus("idle");
-    }, 5000);
+    setMachineStatus("idle");
   }, 8000);
 
   return;
@@ -353,7 +349,12 @@ if (paymentRoute === "machine_01") {
   ? "Already Paid"
   : processingPayment
   ? "Processing..."
-  : `Charge £${amountToCharge.toFixed(2)}`}
+  : `Charge £${(
+    Number(manualAmount || 0) > 0
+      ? Number(manualAmount)
+      : amountToCharge
+  ).toFixed(2)}`
+}
         </button>
       </div>
     </div>
