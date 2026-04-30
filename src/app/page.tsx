@@ -50,9 +50,9 @@ export default function Home() {
 
   const isPaid = Boolean(job?.isFullyPaid);
 
-  async function findJob() {
+  async function findJob(showAlerts = true) {
     if (!jobNumber.trim()) {
-      alert("Enter a ServiceM8 job number");
+      if (showAlerts) alert("Enter a ServiceM8 job number");
       return;
     }
 
@@ -67,14 +67,14 @@ export default function Home() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error || "Job not found");
+        if (showAlerts) alert(data.error || "Job not found");
         return;
       }
 
       setJob(data);
     } catch (err) {
       console.error(err);
-      alert("Could not look up ServiceM8 job");
+      if (showAlerts) alert("Could not look up ServiceM8 job");
     } finally {
       setLoading(false);
     }
@@ -193,8 +193,9 @@ if (paymentRoute === "machine_01") {
       if (status === "succeeded") {
         clearInterval(interval);
 
-        await findJob();
+        await findJob(false);
         setMachineStatus("success");
+        setManualAmount("");
 
         setTimeout(() => {
           setMachineStatus("idle");
@@ -250,7 +251,7 @@ if (paymentRoute === "machine_01") {
           />
 
           <button
-            onClick={findJob}
+            onClick={() => findJob()}
             disabled={loading}
             className="px-4 rounded-xl bg-zinc-700 font-bold disabled:opacity-50"
           >
@@ -339,6 +340,8 @@ if (paymentRoute === "machine_01") {
             return;
           }
 
+          setMachineStatus("idle");
+          setProcessingPayment(false);
           alert("Card machine payment cancelled");
         } catch (err) {
           console.error(err);
