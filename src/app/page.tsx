@@ -37,6 +37,8 @@ export default function Home() {
 const [gcMatches, setGcMatches] = useState<any[]>([]);
 const [gcLoading, setGcLoading] = useState(false);
 const [gcError, setGcError] = useState("");
+const [gcCharging, setGcCharging] = useState(false);
+const [gcSuccess, setGcSuccess] = useState("");
 
   // NEW: where payment should be taken
   const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("office");
@@ -123,6 +125,49 @@ const [gcError, setGcError] = useState("");
     setGcError("Could not search GoCardless");
   } finally {
     setGcLoading(false);
+  }
+}
+async function chargeGoCardlessExcess(customer: any) {
+  if (!job) return;
+
+  if (!customer.hasActiveMandate || !customer.activeMandateId) {
+    setGcError("This customer does not have an active GoCardless mandate");
+    return;
+  }
+
+  setGcCharging(true);
+  setGcError("");
+  setGcSuccess("");
+
+  try {
+    const res = await fetch("/api/gocardless/charge", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        mandateId: customer.activeMandateId,
+        jobNumber: job.jobNumber,
+        jobUuid: job.uuid,
+        customerName: `${customer.given_name || ""} ${customer.family_name || ""}`.trim(),
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.success === false) {
+      setGcError(data.error || "Could not create GoCardless payment");
+      return;
+    }
+
+    setGcSuccess(
+      `£55 HeatCover+ excess requested. GoCardless payment ${data.paymentId || ""}`
+    );
+  } catch (err) {
+    console.error(err);
+    setGcError("Could not create GoCardless payment");
+  } finally {
+    setGcCharging(false);
   }
 }
   async function ensureJobLoaded(): Promise<JobResult | null> {
@@ -422,24 +467,40 @@ if (paymentRoute === "machine_01") {
   </div>
 )}
 
+{gcSuccess && (
+  <div className="p-3 bg-green-600 rounded-xl">
+    {gcSuccess}
+  </div>
+)}
+
 {gcMatches.length > 0 && (
   <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-700 space-y-2">
     <p className="font-bold">GoCardless Match</p>
 
-    {gcMatches.map((c, i) => (
-      <div key={i} className="p-3 bg-black rounded-xl">
-        <p>{c.given_name} {c.family_name}</p>
-        <p className="text-sm text-zinc-400">{c.email}</p>
+{gcMatches.map((c, i) => (
+  <div key={i} className="p-3 bg-black rounded-xl">
+    <p>{c.given_name} {c.family_name}</p>
+    <p className="text-sm text-zinc-400">{c.email}</p>
 
-        {c.hasActiveMandate ? (
-          <p className="text-green-400">Mandate active</p>
-        ) : (
-          <p className="text-yellow-400">
-            Mandate not active ({c.mandates?.[0]?.status})
-          </p>
-        )}
-      </div>
-    ))}
+    {c.hasActiveMandate ? (
+      <>
+        <p className="text-green-400">Mandate active</p>
+
+        <button
+          onClick={() => chargeGoCardlessExcess(c)}
+          disabled={gcCharging}
+          className="mt-3 w-full p-3 rounded-xl bg-green-600 font-bold disabled:opacity-50"
+        >
+          {gcCharging ? "Requesting £55..." : "Confirm £55 Excess Charge"}
+        </button>
+      </>
+    ) : (
+      <p className="text-yellow-400">
+        Mandate not active ({c.mandates?.[0]?.status})
+      </p>
+    )}
+  </div>
+))}
   </div>
 )}
 
