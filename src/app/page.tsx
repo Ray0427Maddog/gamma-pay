@@ -34,6 +34,10 @@ export default function Home() {
   "idle" | "waiting" | "success"
 >("idle");
 
+const [readerStatus, setReaderStatus] = useState<
+  "checking" | "connected" | "in_progress" | "not_connected"
+>("checking");
+
 const [gcMatches, setGcMatches] = useState<any[]>([]);
 const [gcLoading, setGcLoading] = useState(false);
 const [gcError, setGcError] = useState("");
@@ -49,6 +53,27 @@ const [selectedGcCustomer, setSelectedGcCustomer] = useState<any | null>(null);
     const params = new URLSearchParams(window.location.search);
     setSuccess(params.get("success") === "true");
   }, []);
+
+  useEffect(() => {
+  async function checkReaderStatus() {
+    try {
+      const res = await fetch("/api/reader-status");
+      const data = await res.json();
+
+      setReaderStatus(
+        data.status === "connected" ? "connected" : "not_connected"
+      );
+    } catch {
+      setReaderStatus("not_connected");
+    }
+  }
+
+  checkReaderStatus();
+
+  const interval = setInterval(checkReaderStatus, 30000);
+
+  return () => clearInterval(interval);
+}, []);
 
   const totalAmount = Number(job?.totalAmount || 0);
   const paidAmount = Number(job?.paidAmount || 0);
@@ -197,6 +222,10 @@ async function chargeGoCardlessExcess(customer: any) {
 }
 
 async function chargeCard() {
+    if (selectedGcCustomer) {
+    await chargeGoCardlessExcess(selectedGcCustomer);
+    return;
+  }
   if (!jobNumber.trim() || !amountToCharge || amountToCharge <= 0) {
     alert("Enter job number and amount");
     return;
@@ -234,6 +263,7 @@ try {
         if (paymentRoute === "machine_01") {
   setMachineStatus("waiting");
 }
+  setReaderStatus("in_progress");
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -288,6 +318,7 @@ if (paymentRoute === "machine_01") {
         await findJob(false);
         setMachineStatus("success");
         setManualAmount("");
+        setReaderStatus("connected");
 
         setTimeout(() => {
           setMachineStatus("idle");
@@ -299,6 +330,7 @@ if (paymentRoute === "machine_01") {
         setMachineStatus("idle");
         alert("Payment cancelled on terminal");
       }
+      setReaderStatus("not_connected");
 
     } catch (err) {
       console.error("Polling error", err);
@@ -313,18 +345,41 @@ if (paymentRoute === "machine_01") {
     } else {
       alert(data.error || "Could not start payment");
     }
-  } catch (err) {
-    console.error(err);
-    alert("Could not start payment");
-  } finally {
+} catch (err) {
+  console.error(err);
+  setReaderStatus("not_connected");
+  alert("Could not start payment");
+} finally {
   setProcessingPayment(false);
  }
 }
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
-      <h1 className="text-3xl font-bold mb-6 text-pink-500">
-        Gamma Pay
-      </h1>
+<h1 className="text-3xl font-bold text-pink-500">
+  Gamma Pay
+</h1>
+
+<div className="mb-6 flex items-center gap-2 text-sm font-medium">
+  <span
+    className={`h-3 w-3 rounded-full ${
+      readerStatus === "connected"
+        ? "bg-green-500"
+        : readerStatus === "in_progress" || readerStatus === "checking"
+        ? "bg-yellow-400 animate-pulse"
+        : "bg-red-500"
+    }`}
+  />
+
+  <span>
+    {readerStatus === "connected"
+      ? "Reader connected"
+      : readerStatus === "in_progress"
+      ? "Payment in progress"
+      : readerStatus === "checking"
+      ? "Checking reader..."
+      : "Reader not connected"}
+  </span>
+</div>
 
       {success && (
         <div className="mb-6 p-4 bg-green-600 text-white rounded-xl">
@@ -501,8 +556,15 @@ if (paymentRoute === "machine_01") {
 >
   Select for £55 Excess Charge
 </button>
+
+{selectedGcCustomer?.id === c.id && (
+  <div className="mt-2 p-2 bg-purple-600 rounded-lg text-sm text-white">
+    ✔ Selected — press pink button to charge £55
+  </div>
+)}
       </>
     ) : (
+      
       <p className="text-yellow-400">
         Mandate not active ({c.mandates?.[0]?.status})
       </p>
@@ -543,10 +605,14 @@ if (paymentRoute === "machine_01") {
               : "bg-gradient-to-r from-purple-600 to-pink-500"
           }`}
         >
-          {isPaid
+{isPaid
   ? "Already Paid"
+  : gcCharging
+  ? "Requesting £55..."
   : processingPayment
   ? "Processing..."
+  : isGcMode
+  ? "Charge £55.00"
   : `Charge £${(
     Number(manualAmount || 0) > 0
       ? Number(manualAmount)
