@@ -58,6 +58,9 @@ await stripe.terminal.readers.setReaderDisplay(readerId, {
   },
 });
 
+// Give the customer/staff time to read the job details before Tap / Insert appears
+await new Promise((resolve) => setTimeout(resolve, 5000));
+
 const reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
   payment_intent: paymentIntent.id,
 });
