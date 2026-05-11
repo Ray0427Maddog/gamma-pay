@@ -467,7 +467,7 @@ if (paymentRoute === "machine_01") {
             Ray — card reader
           </button>
 
-{paymentRoute === "machine_01" && (
+{paymentRoute === "machine_01" && machineStatus === "waiting" && (
   <div className="space-y-2">
     <p className="text-sm text-yellow-400">
       Payment will be sent to the card reader.
