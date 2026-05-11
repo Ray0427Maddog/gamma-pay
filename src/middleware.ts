@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(req: NextRequest) {
+  const country = req.headers.get("x-vercel-ip-country");
+
+  if (country && country !== "GB") {
+    return new NextResponse("Access denied", { status: 403 });
+  }
+
   const basicAuth = req.headers.get("authorization");
   const password = process.env.APP_PASSWORD;
 
@@ -20,7 +26,7 @@ export function middleware(req: NextRequest) {
   return new NextResponse("Gamma Pay login", {
     status: 401,
     headers: {
-      "WWW-Authenticate": 'Basic realm="Gamma Pay (Staff Only)"',
+      "WWW-Authenticate": 'Basic realm="Gamma Pay (Staff Access Only)"',
     },
   });
 }
