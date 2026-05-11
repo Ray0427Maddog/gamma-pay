@@ -28,6 +28,7 @@ const {
       amount: Number(amount),
       currency: "gbp",
       payment_method_types: ["card_present"],
+      description: `Job #${jobNumber} - ${customerName || "Customer"}`,
 metadata: {
   jobNumber: String(jobNumber),
   jobUuid: String(jobUuid),
