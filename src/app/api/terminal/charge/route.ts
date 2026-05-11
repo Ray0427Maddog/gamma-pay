@@ -39,12 +39,27 @@ metadata: {
 },
     });
 
-    const reader = await stripe.terminal.readers.processPaymentIntent(
-      process.env.STRIPE_READER_ID!,
+const readerId = process.env.STRIPE_READER_ID!;
+
+await stripe.terminal.readers.setReaderDisplay(readerId, {
+  type: "cart",
+  cart: {
+    currency: "gbp",
+    line_items: [
       {
-        payment_intent: paymentIntent.id,
-      }
-    );
+        description: `#${jobNumber} ${customerName || "Customer"}`,
+        amount: Number(amount),
+        quantity: 1,
+      },
+    ],
+    tax: 0,
+    total: Number(amount),
+  },
+});
+
+const reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
+  payment_intent: paymentIntent.id,
+});
 
     return NextResponse.json({
       success: true,
