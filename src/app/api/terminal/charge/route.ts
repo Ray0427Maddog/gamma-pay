@@ -46,18 +46,13 @@ await stripe.terminal.readers.setReaderDisplay(readerId, {
   type: "cart",
   cart: {
     currency: "gbp",
-    line_items: [
-      {
-        description: `#${jobNumber} ${customerName || "Customer"}`,
-        amount: Number(amount),
-        quantity: 1,
-      },
-      {
-        description: "We accept: Visa • Mastercard • Amex • Apple Pay • Google Pay",
-        amount: 0,
-        quantity: 1,
-      },
-    ],
+line_items: [
+  {
+    description: `#${jobNumber} ${customerName || "Customer"} • Visa • Mastercard • Amex`,
+    amount: Number(amount),
+    quantity: 1,
+  },
+],
     tax: 0,
     total: Number(amount),
   },
