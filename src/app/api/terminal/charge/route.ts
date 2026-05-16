@@ -52,6 +52,11 @@ await stripe.terminal.readers.setReaderDisplay(readerId, {
         amount: Number(amount),
         quantity: 1,
       },
+      {
+        description: "We accept: Visa • Mastercard • Amex • Apple Pay • Google Pay",
+        amount: 0,
+        quantity: 1,
+      },
     ],
     tax: 0,
     total: Number(amount),
