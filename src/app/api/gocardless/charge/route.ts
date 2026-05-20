@@ -6,12 +6,14 @@ async function addServiceM8Note({
   customerName,
   paymentId,
   status,
+  chargeDate,
 }: {
   jobUuid: string;
   jobNumber: string;
   customerName: string;
   paymentId: string;
   status: string;
+  chargeDate: string;
 }) {
   if (!jobUuid) return;
 
@@ -25,6 +27,7 @@ Customer: ${customerName || "Unknown"}
 Job Number: ${jobNumber || "Unknown"}
 GoCardless payment ID: ${paymentId}
 Status: ${status || "unknown"}
+Expected collection: ${chargeDate || "unknown"}
 Requested by: Gamma Pay
 
 No ServiceM8 invoice/payment entry created.`,
@@ -180,14 +183,17 @@ export async function POST(req: Request) {
 
     const status =
       data.payments?.status || "";
+    const chargeDate =
+      data.payments?.charge_date || "";
 
-    await addServiceM8Note({
-      jobUuid: String(jobUuid || ""),
-      jobNumber: String(jobNumber || ""),
-      customerName: String(customerName || ""),
-      paymentId,
-      status,
-    });
+await addServiceM8Note({
+  jobUuid: String(jobUuid || ""),
+  jobNumber: String(jobNumber || ""),
+  customerName: String(customerName || ""),
+  paymentId,
+  status,
+  chargeDate,
+});
 
     return NextResponse.json({
       success: true,
