@@ -45,6 +45,7 @@ const [gcCharging, setGcCharging] = useState(false);
 const [gcSuccess, setGcSuccess] = useState("");
 const [gcSearched, setGcSearched] = useState(false);
 const [selectedGcCustomer, setSelectedGcCustomer] = useState<any | null>(null);
+const [gcAlreadyCharged, setGcAlreadyCharged] = useState(false);
 
   // NEW: where payment should be taken
   const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("office");
@@ -190,6 +191,7 @@ async function chargeGoCardlessExcess(customer: any) {
     setGcSuccess(
       `£55 HeatCover+ excess requested. GoCardless payment ${data.paymentId || ""}`
     );
+    setGcAlreadyCharged(true);
   } catch (err) {
     console.error(err);
     setGcError("Could not create GoCardless payment");
@@ -598,15 +600,17 @@ if (paymentRoute === "machine_01") {
 
         <button
           onClick={chargeCard}
-          disabled={isPaid || processingPayment}
+          disabled={isPaid || processingPayment || gcAlreadyCharged}
           className={`w-full p-4 rounded-xl font-bold ${
-            isPaid
-              ? "bg-gray-600 cursor-not-allowed"
-              : "bg-gradient-to-r from-purple-600 to-pink-500"
-          }`}
+  isPaid || gcAlreadyCharged
+    ? "bg-gray-600 cursor-not-allowed"
+    : "bg-gradient-to-r from-purple-600 to-pink-500"
+}`}
         >
 {isPaid
   ? "Already Paid"
+  : gcAlreadyCharged
+  ? "HeatCover+ Excess Requested"
   : gcCharging
   ? "Requesting £55..."
   : processingPayment
@@ -614,10 +618,10 @@ if (paymentRoute === "machine_01") {
   : isGcMode
   ? "Charge £55.00"
   : `Charge £${(
-    Number(manualAmount || 0) > 0
-      ? Number(manualAmount)
-      : amountToCharge
-  ).toFixed(2)}`
+      Number(manualAmount || 0) > 0
+        ? Number(manualAmount)
+        : amountToCharge
+    ).toFixed(2)}`
 }
         </button>
       </div>
