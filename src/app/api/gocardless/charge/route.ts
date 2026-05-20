@@ -54,6 +54,29 @@ export async function POST(req: Request) {
 
     const { mandateId, jobNumber, jobUuid, customerName } = body;
 
+    console.log("GC frontend body:", JSON.stringify(body, null, 2));
+
+if (typeof mandateId !== "string") {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "mandateId is not a string",
+      received: mandateId,
+    },
+    { status: 400 }
+  );
+}
+
+if (!mandateId.startsWith("MD")) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "mandateId does not look like a GoCardless mandate ID",
+      received: mandateId,
+    },
+    { status: 400 }
+  );
+}
     if (!mandateId) {
       return NextResponse.json(
         { success: false, error: "Missing mandateId" },
@@ -98,14 +121,29 @@ export async function POST(req: Request) {
       }
     );
 
-    const data = await res.json();
+const responseText = await res.text();
 
-    if (!res.ok) {
-      return NextResponse.json(
-        { success: false, error: data.error?.message || "Charge failed" },
-        { status: 500 }
-      );
-    }
+console.log("GC status:", res.status);
+console.log("GC response:", responseText);
+
+let data: any = {};
+
+try {
+  data = JSON.parse(responseText);
+} catch {
+  data = { raw: responseText };
+}
+
+if (!res.ok) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: data.error?.message || "Charge failed",
+      details: data.error?.errors || data,
+    },
+    { status: res.status }
+  );
+}
 
 const paymentId = data.payments?.id || "";
 const status = data.payments?.status || "";
