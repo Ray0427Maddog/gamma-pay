@@ -22,6 +22,7 @@ async function addServiceM8Note({
 
 Amount: £55.00
 Customer: ${customerName || "Unknown"}
+Job Number: ${jobNumber || "Unknown"}
 GoCardless payment ID: ${paymentId}
 Status: ${status || "unknown"}
 Requested by: Gamma Pay
@@ -29,14 +30,17 @@ Requested by: Gamma Pay
 No ServiceM8 invoice/payment entry created.`,
   };
 
-  const noteRes = await fetch("https://api.servicem8.com/api_1.0/note.json", {
-    method: "POST",
-    headers: {
-      "X-API-Key": process.env.SERVICEM8_API_KEY!,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(noteBody),
-  });
+  const noteRes = await fetch(
+    "https://api.servicem8.com/api_1.0/note.json",
+    {
+      method: "POST",
+      headers: {
+        "X-API-Key": process.env.SERVICEM8_API_KEY!,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(noteBody),
+    }
+  );
 
   const noteText = await noteRes.text();
 
@@ -52,46 +56,83 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const { mandateId, jobNumber, jobUuid, customerName } = body;
+    const {
+      mandateId,
+      jobNumber,
+      jobUuid,
+      customerName,
+    } = body;
 
-    console.log("GC frontend body:", JSON.stringify(body, null, 2));
+    console.log(
+      "GC frontend body:",
+      JSON.stringify(body, null, 2)
+    );
 
-if (typeof mandateId !== "string") {
-  return NextResponse.json(
-    {
-      success: false,
-      error: "mandateId is not a string",
-      received: mandateId,
-    },
-    { status: 400 }
-  );
-}
-
-if (!mandateId.startsWith("MD")) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: "mandateId does not look like a GoCardless mandate ID",
-      received: mandateId,
-    },
-    { status: 400 }
-  );
-}
     if (!mandateId) {
       return NextResponse.json(
-        { success: false, error: "Missing mandateId" },
+        {
+          success: false,
+          error: "Missing mandateId",
+        },
         { status: 400 }
       );
     }
 
-    const accessToken = process.env.GOCARDLESS_ACCESS_TOKEN;
+    if (typeof mandateId !== "string") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "mandateId is not a string",
+          received: mandateId,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!mandateId.startsWith("MD")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "mandateId does not look valid",
+          received: mandateId,
+        },
+        { status: 400 }
+      );
+    }
+
+    const accessToken =
+      process.env.GOCARDLESS_ACCESS_TOKEN;
 
     if (!accessToken) {
       return NextResponse.json(
-        { success: false, error: "Missing GoCardless token" },
+        {
+          success: false,
+          error: "Missing GoCardless token",
+        },
         { status: 500 }
       );
     }
+
+    const payload = {
+      payments: {
+        amount: 5500,
+        currency: "GBP",
+        links: {
+          mandate: mandateId,
+        },
+        description: "HeatCover+ Excess",
+        metadata: {
+          jobNumber: String(jobNumber || ""),
+          jobUuid: String(jobUuid || ""),
+          customerName: String(customerName || ""),
+        },
+      },
+    };
+
+    console.log(
+      "GC payload:",
+      JSON.stringify(payload, null, 2)
+    );
 
     const res = await fetch(
       "https://api.gocardless.com/payments",
@@ -102,69 +143,66 @@ if (!mandateId.startsWith("MD")) {
           "GoCardless-Version": "2015-07-06",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          payments: {
-            amount: 5500,
-            currency: "GBP",
-            links: {
-              mandate: mandateId,
-            },
-            description: "HeatCover+ Excess",
-            metadata: {
-              jobNumber: String(jobNumber),
-              jobUuid: String(jobUuid),
-              customerName: customerName || "",
-              source: "Gamma Pay",
-            },
-          },
-        }),
+        body: JSON.stringify(payload),
       }
     );
 
-const responseText = await res.text();
+    const responseText = await res.text();
 
-console.log("GC status:", res.status);
-console.log("GC response:", responseText);
+    console.log("GC status:", res.status);
+    console.log("GC response:", responseText);
 
-let data: any = {};
+    let data: any = {};
 
-try {
-  data = JSON.parse(responseText);
-} catch {
-  data = { raw: responseText };
-}
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = {
+        raw: responseText,
+      };
+    }
 
-if (!res.ok) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: data.error?.message || "Charge failed",
-      details: data.error?.errors || data,
-    },
-    { status: res.status }
-  );
-}
+    if (!res.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            data.error?.message || "Charge failed",
+          details:
+            data.error?.errors || data,
+        },
+        { status: res.status }
+      );
+    }
 
-const paymentId = data.payments?.id || "";
-const status = data.payments?.status || "";
+    const paymentId =
+      data.payments?.id || "";
 
-await addServiceM8Note({
-  jobUuid: String(jobUuid),
-  jobNumber: String(jobNumber),
-  customerName: customerName || "",
-  paymentId,
-  status,
-});
+    const status =
+      data.payments?.status || "";
 
-return NextResponse.json({
-  success: true,
-  paymentId,
-  status,
-});
+    await addServiceM8Note({
+      jobUuid: String(jobUuid || ""),
+      jobNumber: String(jobNumber || ""),
+      customerName: String(customerName || ""),
+      paymentId,
+      status,
+    });
 
+    return NextResponse.json({
+      success: true,
+      paymentId,
+      status,
+    });
   } catch (err: any) {
+    console.error("GC route error:", err);
+
     return NextResponse.json(
-      { success: false, error: err.message || "Charge failed" },
+      {
+        success: false,
+        error:
+          err.message || "Charge failed",
+      },
       { status: 500 }
     );
   }
