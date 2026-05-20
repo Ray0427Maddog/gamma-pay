@@ -561,7 +561,7 @@ if (paymentRoute === "machine_01") {
 
 {selectedGcCustomer?.id === c.id && (
   <div className="mt-2 p-2 bg-purple-600 rounded-lg text-sm text-white">
-    ✔ Selected — press pink button to charge £55
+    ✔  Selected, are you sure? Customer will be charged
   </div>
 )}
       </>
