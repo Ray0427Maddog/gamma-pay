@@ -333,10 +333,11 @@ if (paymentRoute === "office") {
     const data = await res.json();
     const paymentIntentId = data.paymentIntentId;
 
-    if (!res.ok || data.success === false) {
-      alert(data.error || "Could not start payment");
-      return;
-    }
+if (!res.ok || data.success === false) {
+  console.error("Payment route error:", data);
+  alert(data.error || data.message || "Could not start payment");
+  return;
+}
 
 if (paymentRoute === "machine_01") {
   if (!paymentIntentId) {
@@ -388,11 +389,16 @@ if (paymentRoute === "machine_01") {
   return;
 }
 
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      alert(data.error || "Could not start payment");
-    }
+if (paymentRoute === "paypal" && data.success) {
+  alert(data.message || "PayPal payment link sent by SMS");
+  return;
+}
+
+if (data.url) {
+  window.location.href = data.url;
+} else {
+  alert(data.error || data.message || "Could not start payment");
+}
 } catch (err) {
   console.error(err);
   setReaderStatus("not_connected");
