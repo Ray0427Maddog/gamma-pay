@@ -51,9 +51,10 @@ export async function GET(req: Request) {
 
     const job = jobs[0];
 
-    let customer = "Unknown customer";
-    let billingAddress = job.billing_address || "";
-    let customerEmail = job.email || "";
+let customer = "Unknown customer";
+let billingAddress = job.billing_address || "";
+let customerEmail = job.email || "";
+let customerPhone = job.phone || job.mobile || "";
 
     if (job.company_uuid) {
       try {
@@ -70,6 +71,14 @@ export async function GET(req: Request) {
           "Unknown customer";
           customerEmail = client.email || job.email || "";
 
+          customerPhone =
+          client.phone ||
+          client.mobile ||
+          client.telephone ||
+          job.phone ||
+          job.mobile ||
+          customerPhone;
+
         billingAddress =
           client.billing_address || client.address || billingAddress;
       } catch (err) {
@@ -85,6 +94,11 @@ if (!customerEmail) {
 
     if (Array.isArray(contacts) && contacts.length > 0) {
       customerEmail = contacts[0].email || customerEmail;
+      customerPhone =
+      contacts[0].phone ||
+      contacts[0].mobile ||
+      contacts[0].telephone ||
+      customerPhone;
     }
   } catch (err) {
     console.error("Contact lookup failed:", err);
@@ -119,6 +133,7 @@ if (!customerEmail) {
       jobNumber: job.generated_job_id,
       customer,
       customerEmail,
+      customerPhone,
       address: job.job_address || billingAddress || "",
       billingAddress,
       status: job.status || "",

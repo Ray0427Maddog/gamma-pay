@@ -20,6 +20,7 @@ type JobResult = {
   jobNumber: string;
   customer: string;
   customerEmail?: string;
+  customerPhone?: string;
   address: string;
   status: string;
   totalAmount: number;
