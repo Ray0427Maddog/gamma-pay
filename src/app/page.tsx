@@ -13,7 +13,7 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
-type PaymentRoute = "office" | "machine_01";
+type PaymentRoute = "office" | "machine_01" | "paypal";
 
 type JobResult = {
   uuid: string;
@@ -273,6 +273,8 @@ try {
 const endpoint =
   paymentRoute === "machine_01"
     ? "/api/terminal/charge"
+    : paymentRoute === "paypal"
+    ? "/api/paypal/create-link"
     : "/api/moto/charge";
 
         if (paymentRoute === "machine_01") {
@@ -510,6 +512,25 @@ if (paymentRoute === "machine_01") {
           >
             Ray — card reader
           </button>
+
+<button
+  type="button"
+  onClick={() => setPaymentRoute("paypal")}
+  className={`w-full p-4 rounded-xl font-bold border ${
+    paymentRoute === "paypal"
+      ? "bg-gradient-to-r from-purple-600 to-pink-500 border-pink-500"
+      : "bg-black border-zinc-700"
+  }`}
+>
+  <div className="flex items-center justify-center gap-3">
+    <img
+      src="https://www.paypalobjects.com/webstatic/icon/pp258.png"
+      alt="PayPal"
+      className="h-6"
+    />
+    <span>PayPal / Pay in 3</span>
+  </div>
+</button>
 
 {paymentRoute === "machine_01" && machineStatus === "waiting" && (
   <div className="space-y-2">
