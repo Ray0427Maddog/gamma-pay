@@ -185,17 +185,20 @@ export async function POST(req: Request) {
 
     const smsText = `Gamma Heating payment link for Job #${jobNumber}: ${approvalUrl} Pay by card, PayPal or Pay in 3 if eligible.`;
 
-    await sendTextMagicSms({
-      phone: cleanedPhone,
-      message: smsText,
-    });
+const smsResult = await sendTextMagicSms({
+  phone: cleanedPhone,
+  message: smsText,
+});
 
-    return NextResponse.json({
-      success: true,
-      message: "PayPal payment link sent by SMS",
-      phone: cleanedPhone,
-      orderId: orderData.id,
-    });
+console.log("TextMagic SMS result:", smsResult);
+
+return NextResponse.json({
+  success: true,
+  message: `PayPal payment link sent by SMS to ${cleanedPhone}`,
+  phone: cleanedPhone,
+  orderId: orderData.id,
+  textMagic: smsResult,
+});
   } catch (err: any) {
     console.error("PayPal SMS error:", err);
 
