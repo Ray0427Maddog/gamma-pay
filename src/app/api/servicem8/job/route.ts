@@ -72,12 +72,13 @@ let customerPhone = job.phone || job.mobile || "";
           customerEmail = client.email || job.email || "";
 
           customerPhone =
-          client.phone ||
-          client.mobile ||
-          client.telephone ||
-          job.phone ||
-          job.mobile ||
-          customerPhone;
+  client.mobile ||
+  client.cellphone ||
+  client.phone ||
+  client.telephone ||
+  job.mobile ||
+  job.phone ||
+  customerPhone;
 
         billingAddress =
           client.billing_address || client.address || billingAddress;
@@ -94,11 +95,12 @@ if (!customerEmail) {
 
     if (Array.isArray(contacts) && contacts.length > 0) {
       customerEmail = contacts[0].email || customerEmail;
-      customerPhone =
-      contacts[0].phone ||
-      contacts[0].mobile ||
-      contacts[0].telephone ||
-      customerPhone;
+customerPhone =
+  contacts[0].mobile ||
+  contacts[0].cellphone ||
+  contacts[0].phone ||
+  contacts[0].telephone ||
+  customerPhone;
     }
   } catch (err) {
     console.error("Contact lookup failed:", err);
