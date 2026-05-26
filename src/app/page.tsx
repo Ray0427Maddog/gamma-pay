@@ -275,7 +275,7 @@ const endpoint =
   paymentRoute === "machine_01"
     ? "/api/terminal/charge"
     : paymentRoute === "paypal"
-    ? "/api/paypal/create-link"
+    ? "/api/paypal/send-sms"
     : "/api/moto/charge";
 
         if (paymentRoute === "machine_01") {
@@ -325,6 +325,7 @@ if (paymentRoute === "office") {
         customerName: jobForPayment.customer || "",
         address: jobForPayment.address || "",
         customerEmail: "",
+        customerPhone: jobForPayment.customerPhone || "",
         paymentMethodId,
       }),
     });
