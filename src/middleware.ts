@@ -12,7 +12,7 @@ export function middleware(req: NextRequest) {
 
   if (!password) {
     return new NextResponse("Missing app password", { status: 500 });
-  }
+  } 
 
   if (basicAuth) {
     const authValue = basicAuth.split(" ")[1];

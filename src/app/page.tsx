@@ -1,6 +1,17 @@
 'use client'
 
 import { useEffect, useState } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardElement,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
+
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
 
 type PaymentRoute = "office" | "machine_01";
 
@@ -21,7 +32,9 @@ type JobResult = {
   };
 };
 
-export default function Home() {
+function HomeContent() {
+  const stripe = useStripe();
+  const elements = useElements();
   const [jobNumber, setJobNumber] = useState("");
   const [manualAmount, setManualAmount] = useState("");
   const [job, setJob] = useState<JobResult | null>(null);
@@ -257,15 +270,43 @@ try {
     return;
   }
 
-    const endpoint =
-      paymentRoute === "machine_01"
-        ? "/api/terminal/charge"
-        : "/api/checkout";
+const endpoint =
+  paymentRoute === "machine_01"
+    ? "/api/terminal/charge"
+    : "/api/moto/charge";
 
         if (paymentRoute === "machine_01") {
   setMachineStatus("waiting");
 }
   setReaderStatus("in_progress");
+
+  let paymentMethodId = "";
+
+if (paymentRoute === "office") {
+  if (!stripe || !elements) {
+    alert("Stripe is still loading. Please try again.");
+    return;
+  }
+
+  const cardElement = elements.getElement(CardElement);
+
+  if (!cardElement) {
+    alert("Card form not ready");
+    return;
+  }
+
+  const result = await stripe.createPaymentMethod({
+    type: "card",
+    card: cardElement,
+  });
+
+  if (result.error) {
+    alert(result.error.message || "Card details could not be processed");
+    return;
+  }
+
+  paymentMethodId = result.paymentMethod.id;
+}
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -281,6 +322,7 @@ try {
         customerName: jobForPayment.customer || "",
         address: jobForPayment.address || "",
         customerEmail: "",
+        paymentMethodId,
       }),
     });
 
@@ -588,6 +630,22 @@ if (paymentRoute === "machine_01") {
   </div>
 )}
 
+{paymentRoute === "office" && !isGcMode && !isPaid && (
+  <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-700 space-y-3">
+    <p className="font-bold">Office phone payment card details</p>
+    <div className="p-4 rounded-xl bg-white text-black">
+      <CardElement
+        options={{
+          hidePostalCode: true,
+        }}
+      />
+    </div>
+    <p className="text-xs text-zinc-400">
+      Card details are entered into Stripe secure fields. Gamma Pay does not store card numbers.
+    </p>
+  </div>
+)}
+
         <label className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900 border border-zinc-700">
           <input
             type="checkbox"
@@ -626,5 +684,12 @@ if (paymentRoute === "machine_01") {
         </button>
       </div>
     </div>
+  );
+}
+export default function Home() {
+  return (
+    <Elements stripe={stripePromise}>
+      <HomeContent />
+    </Elements>
   );
 }

@@ -108,9 +108,9 @@ async function processGammaPayPayment({
 const noteBody = {
   related_object_uuid: jobUuid,
   related_object: "job",
-  note: `💳 Payment received via Gamma Pay (£${amountPaid.toFixed(
-    2
-  )}) | Route: ${paymentRoute} | Ref ${stripeReference}`,
+note: `💳 Gamma Pay (£${amountPaid.toFixed(2)}) | ${
+  paymentRoute === "machine_01" ? "Card Machine" : "Online"
+} | Job ${jobNumber} | Ref ${stripeReference}`,
 };
 
 console.log("📝 Creating ServiceM8 note:", noteBody);
