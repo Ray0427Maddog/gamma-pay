@@ -432,6 +432,54 @@ async function loadHistory() {
     setHistoryLoading(false);
   }
 }
+
+function downloadHistoryCsv() {
+  if (!historyData || !historyData.rows || historyData.rows.length === 0) {
+    return;
+  }
+
+  const headers: string[] = [
+    "Job Number",
+    "Charge Date",
+    "Route",
+    "Gross",
+    "Fee",
+    "Net",
+    "Payout Date",
+    "Stripe Reference",
+  ];
+
+  const csvRows: string[][] = historyData.rows.map((row: any) => [
+    String(row.jobNumber || ""),
+    String(row.chargeDate || ""),
+    String(row.route || ""),
+    String(row.gross || ""),
+    String(row.fee || ""),
+    String(row.net || ""),
+    String(row.payoutDate || ""),
+    String(row.stripeReference || ""),
+  ]);
+
+  const csv = [headers, ...csvRows]
+    .map((line: string[]) =>
+      line.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(",")
+    )
+    .join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `gamma-pay-${String(historyData.month || "history").replace(/\s+/g, "-")}.csv`;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
 <div className="relative w-full max-w-md mb-2">
@@ -457,12 +505,21 @@ async function loadHistory() {
           Payment History - {historyData.month}
         </h2>
 
-        <button
-          onClick={() => setShowHistory(false)}
-          className="text-zinc-400"
-        >
-          ✕
-        </button>
+        <div className="flex items-center gap-3">
+  <button
+    onClick={downloadHistoryCsv}
+    className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm font-bold"
+  >
+    Download CSV
+  </button>
+
+  <button
+    onClick={() => setShowHistory(false)}
+    className="text-zinc-400"
+  >
+    ✕
+  </button>
+</div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
