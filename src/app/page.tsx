@@ -479,6 +479,20 @@ function downloadHistoryCsv() {
 
   URL.revokeObjectURL(url);
 }
+const groupedHistory = historyData?.rows?.reduce(
+  (groups: Record<string, any[]>, row: any) => {
+    const key = row.payoutDate || "Pending";
+
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+
+    groups[key].push(row);
+
+    return groups;
+  },
+  {}
+);
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
@@ -545,33 +559,57 @@ function downloadHistoryCsv() {
         </div>
       </div>
 
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-zinc-700">
-            <th className="text-left p-2">Job</th>
-            <th className="text-left p-2">Date</th>
-            <th className="text-left p-2">Route</th>
-            <th className="text-left p-2">Gross</th>
-            <th className="text-left p-2">Fee</th>
-            <th className="text-left p-2">Net</th>
-            <th className="text-left p-2">Payout</th>
-          </tr>
-        </thead>
+<div className="space-y-6">
+  {Object.entries(groupedHistory || {}).map(
+    ([payoutDate, rows]: [string, any]) => {
+      const payoutTotal = rows.reduce(
+        (sum: number, row: any) => sum + Number(row.net),
+        0
+      );
 
-        <tbody>
-          {historyData.rows.map((row: any, i: number) => (
-            <tr key={i} className="border-b border-zinc-800">
-              <td className="p-2">{row.jobNumber}</td>
-              <td className="p-2">{row.chargeDate}</td>
-              <td className="p-2">{row.route}</td>
-              <td className="p-2">£{row.gross}</td>
-              <td className="p-2">£{row.fee}</td>
-              <td className="p-2">£{row.net}</td>
-              <td className="p-2">{row.payoutDate}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      return (
+        <div
+          key={payoutDate}
+          className="border border-zinc-700 rounded-xl overflow-hidden"
+        >
+          <div className="bg-zinc-800 p-3 flex justify-between font-bold">
+            <span>Payout {payoutDate}</span>
+            <span>£{payoutTotal.toFixed(2)}</span>
+          </div>
+
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-zinc-700">
+                <th className="text-left p-2">Job</th>
+                <th className="text-left p-2">Date</th>
+                <th className="text-left p-2">Route</th>
+                <th className="text-left p-2">Gross</th>
+                <th className="text-left p-2">Fee</th>
+                <th className="text-left p-2">Net</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {rows.map((row: any, i: number) => (
+                <tr
+                  key={i}
+                  className="border-b border-zinc-800"
+                >
+                  <td className="p-2">{row.jobNumber}</td>
+                  <td className="p-2">{row.chargeDate}</td>
+                  <td className="p-2">{row.route}</td>
+                  <td className="p-2">£{row.gross}</td>
+                  <td className="p-2">£{row.fee}</td>
+                  <td className="p-2">£{row.net}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+  )}
+</div>
 
     </div>
   </div>
