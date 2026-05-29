@@ -64,6 +64,10 @@ const [gcAlreadyCharged, setGcAlreadyCharged] = useState(false);
   // NEW: where payment should be taken
   const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("office");
 
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyData, setHistoryData] = useState<any>(null);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSuccess(params.get("success") === "true");
@@ -407,11 +411,114 @@ if (data.url) {
   setProcessingPayment(false);
  }
 }
+async function loadHistory() {
+  try {
+    setHistoryLoading(true);
+
+    const res = await fetch("/api/history");
+    const data = await res.json();
+
+    if (!res.ok || data.success === false) {
+      alert(data.error || "Could not load history");
+      return;
+    }
+
+    setHistoryData(data);
+    setShowHistory(true);
+  } catch (err) {
+    console.error(err);
+    alert("Could not load history");
+  } finally {
+    setHistoryLoading(false);
+  }
+}
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
-<h1 className="text-3xl font-bold text-pink-500">
-  Gamma Pay
-</h1>
+<div className="relative w-full max-w-md mb-2">
+  <h1 className="text-3xl font-bold text-pink-500 text-center">
+    Gamma Pay
+  </h1>
+
+  <button
+    onClick={loadHistory}
+    disabled={historyLoading}
+    className="absolute right-0 top-1/2 -translate-y-1/2 text-xl font-bold text-zinc-400 hover:text-white"
+  >
+    Ⓗ
+  </button>
+</div>
+
+{showHistory && historyData && (
+  <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-5xl w-full max-h-[90vh] overflow-auto">
+
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">
+          Payment History - {historyData.month}
+        </h2>
+
+        <button
+          onClick={() => setShowHistory(false)}
+          className="text-zinc-400"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-black p-3 rounded">
+          Gross
+          <div className="font-bold">
+            £{historyData.summary.gross}
+          </div>
+        </div>
+
+        <div className="bg-black p-3 rounded">
+          Fees
+          <div className="font-bold">
+            £{historyData.summary.fees}
+          </div>
+        </div>
+
+        <div className="bg-black p-3 rounded">
+          Net
+          <div className="font-bold text-green-400">
+            £{historyData.summary.net}
+          </div>
+        </div>
+      </div>
+
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-zinc-700">
+            <th className="text-left p-2">Job</th>
+            <th className="text-left p-2">Date</th>
+            <th className="text-left p-2">Route</th>
+            <th className="text-left p-2">Gross</th>
+            <th className="text-left p-2">Fee</th>
+            <th className="text-left p-2">Net</th>
+            <th className="text-left p-2">Payout</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {historyData.rows.map((row: any, i: number) => (
+            <tr key={i} className="border-b border-zinc-800">
+              <td className="p-2">{row.jobNumber}</td>
+              <td className="p-2">{row.chargeDate}</td>
+              <td className="p-2">{row.route}</td>
+              <td className="p-2">£{row.gross}</td>
+              <td className="p-2">£{row.fee}</td>
+              <td className="p-2">£{row.net}</td>
+              <td className="p-2">{row.payoutDate}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+)}
 
 <div className="mb-6 flex items-center gap-2 text-sm font-medium">
   <span
