@@ -702,13 +702,19 @@ if (data.url) {
   ? "Requesting £55..."
   : processingPayment
   ? "Processing..."
-  : isGcMode
-  ? "Charge £55.00"
-  : `Charge £${(
-      Number(manualAmount || 0) > 0
-        ? Number(manualAmount)
-        : amountToCharge
-    ).toFixed(2)}`
+: isGcMode
+? "Charge £55.00"
+: paymentRoute === "paypal"
+? `Text PayPal Link £${(
+    Number(manualAmount || 0) > 0
+      ? Number(manualAmount)
+      : amountToCharge
+  ).toFixed(2)}`
+: `Charge £${(
+    Number(manualAmount || 0) > 0
+      ? Number(manualAmount)
+      : amountToCharge
+  ).toFixed(2)}`
 }
         </button>
       </div>
