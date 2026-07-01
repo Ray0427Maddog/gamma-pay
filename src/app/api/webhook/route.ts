@@ -89,7 +89,12 @@ async function processGammaPayPayment({
           actioned_by_uuid: "",
           timestamp: serviceM8Timestamp(),
           amount: String(amountPaid),
-          method: paymentRoute === "machine_01" ? "Card Machine" : "Stripe",
+          method:
+  paymentRoute === "machine_01"
+    ? "Card Machine"
+    : paymentRoute === "office_moto"
+    ? "MOTO"
+    : "Stripe",
           note: `Gamma Pay payment | Job ${jobNumber} | Route ${paymentRoute} | Ref ${stripeReference}`,
         }),
       }
@@ -109,7 +114,11 @@ const noteBody = {
   related_object_uuid: jobUuid,
   related_object: "job",
 note: `💳 Gamma Pay (£${amountPaid.toFixed(2)}) | ${
-  paymentRoute === "machine_01" ? "Card Machine" : "Online"
+  paymentRoute === "machine_01"
+  ? "Card Machine"
+  : paymentRoute === "office_moto"
+  ? "Office MOTO"
+  : "Online"
 } | Job ${jobNumber} | Ref ${stripeReference}`,
 };
 
@@ -247,10 +256,11 @@ if (event.type === "checkout.session.completed") {
 if (event.type === "payment_intent.succeeded") {
   const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
-  if (paymentIntent.metadata?.paymentRoute !== "machine_01") {
-    return NextResponse.json({ received: true });
-  }
+const route = paymentIntent.metadata?.paymentRoute;
 
+if (route !== "machine_01" && route !== "office_moto") {
+  return NextResponse.json({ received: true });
+}
   // 🔁 Re-fetch to get latest metadata (important for retries)
   const freshPaymentIntent = await stripe.paymentIntents.retrieve(
     paymentIntent.id
@@ -270,7 +280,7 @@ if (event.type === "payment_intent.succeeded") {
     jobNumber: paymentIntent.metadata?.jobNumber || "",
     jobUuid: paymentIntent.metadata?.jobUuid || "",
     markComplete: paymentIntent.metadata?.markComplete === "yes",
-    paymentRoute: paymentIntent.metadata?.paymentRoute || "machine_01",
+    paymentRoute: paymentIntent.metadata?.paymentRoute || "office_moto",
     customerName: paymentIntent.metadata?.customerName || "",
     address: paymentIntent.metadata?.address || "",
     amountPaid: paymentIntent.amount_received / 100,

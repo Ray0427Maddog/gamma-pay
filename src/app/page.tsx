@@ -290,11 +290,6 @@ const endpoint =
   let paymentMethodId = "";
 
 if (paymentRoute === "office") {
-  alert(
-    "Stripe public key loaded: " +
-      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.slice(0, 20)
-  );
-
   if (!stripe || !elements) {
     alert("Stripe is still loading. Please try again.");
     return;
