@@ -398,6 +398,14 @@ if (paymentRoute === "paypal" && data.success) {
   return;
 }
 
+if (paymentRoute === "office" && data.success) {
+  alert("Payment successful — ServiceM8 update will follow shortly");
+  await findJob(false);
+  setManualAmount("");
+  setProcessingPayment(false);
+  return;
+}
+
 if (data.url) {
   window.location.href = data.url;
 } else {
