@@ -152,15 +152,23 @@ if (!noteRes.ok) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          jobNumber,
-          jobUuid,
-          customerName,
-          address,
-          customerEmail,
-          amountPaid,
-          paymentRoute,
-          stripeSessionId: stripeReference,
-        }),
+  jobNumber,
+  jobUuid,
+  customerName,
+  address,
+  customerEmail,
+  amountPaid,
+  formattedAmountPaid: Number(amountPaid || 0).toFixed(2),
+  paymentRoute,
+  friendlyPaymentMethod:
+    paymentRoute === "office_moto"
+      ? "Card Payment (Telephone)"
+      : paymentRoute === "machine_01"
+      ? "Card Payment (Card Reader)"
+      : "Online Card Payment",
+  stripeSessionId: stripeReference,
+  termsUrl: "https://gammaheating.co.uk/terms-and-conditions/",
+}),
       });
     }
 
