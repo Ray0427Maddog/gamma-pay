@@ -65,8 +65,17 @@ const [gcAlreadyCharged, setGcAlreadyCharged] = useState(false);
   const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("office");
 
   const [showHistory, setShowHistory] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyData, setHistoryData] = useState<any>(null);
+const [historyLoading, setHistoryLoading] = useState(false);
+const [historyData, setHistoryData] = useState<any>(null);
+
+const [historyDate, setHistoryDate] = useState(() => {
+  const now = new Date();
+
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  };
+});
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -419,11 +428,17 @@ if (data.url) {
   setProcessingPayment(false);
  }
 }
-async function loadHistory() {
+async function loadHistory(
+  year = historyDate.year,
+  month = historyDate.month
+) {
   try {
     setHistoryLoading(true);
 
-    const res = await fetch("/api/history");
+    const res = await fetch(
+      `/api/history?year=${year}&month=${month}`
+    );
+
     const data = await res.json();
 
     if (!res.ok || data.success === false) {
@@ -431,14 +446,32 @@ async function loadHistory() {
       return;
     }
 
-    setHistoryData(data);
-    setShowHistory(true);
+    setHistoryDate({
+  year,
+  month,
+});
+
+setHistoryData(data);
+setShowHistory(true);
   } catch (err) {
     console.error(err);
     alert("Could not load history");
   } finally {
     setHistoryLoading(false);
   }
+}
+
+function changeHistoryMonth(direction: -1 | 1) {
+  const nextDate = new Date(
+    historyDate.year,
+    historyDate.month - 1 + direction,
+    1
+  );
+
+  const nextYear = nextDate.getFullYear();
+  const nextMonth = nextDate.getMonth() + 1;
+
+  loadHistory(nextYear, nextMonth);
 }
 
 function downloadHistoryCsv() {
@@ -465,7 +498,7 @@ function downloadHistoryCsv() {
     String(row.fee || ""),
     String(row.net || ""),
     String(row.payoutDate || ""),
-    String(row.stripeReference || ""),
+    String(row.paymentReference || ""),
   ]);
 
   const csv = [headers, ...csvRows]
@@ -488,19 +521,43 @@ function downloadHistoryCsv() {
   URL.revokeObjectURL(url);
 }
 const groupedHistory = historyData?.rows?.reduce(
-  (groups: Record<string, any[]>, row: any) => {
-    const key = row.payoutDate || "Pending";
+  (
+    providers: Record<
+      string,
+      {
+        providerName: string;
+        payouts: Record<string, any[]>;
+      }
+    >,
+    row: any
+  ) => {
+    const providerKey = row.providerKey || "other";
+    const providerName = row.provider || "Other";
+    const payoutKey = row.payoutDate || "Pending";
 
-    if (!groups[key]) {
-      groups[key] = [];
+    if (!providers[providerKey]) {
+      providers[providerKey] = {
+        providerName,
+        payouts: {},
+      };
     }
 
-    groups[key].push(row);
+    if (!providers[providerKey].payouts[payoutKey]) {
+      providers[providerKey].payouts[payoutKey] = [];
+    }
 
-    return groups;
+    providers[providerKey].payouts[payoutKey].push(row);
+
+    return providers;
   },
   {}
 );
+
+const now = new Date();
+
+const isCurrentHistoryMonth =
+  historyDate.year === now.getFullYear() &&
+  historyDate.month === now.getMonth() + 1;
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
@@ -510,8 +567,8 @@ const groupedHistory = historyData?.rows?.reduce(
   </h1>
 
   <button
-    onClick={loadHistory}
-    disabled={historyLoading}
+  onClick={() => loadHistory()}
+  disabled={historyLoading}
     className="absolute right-0 top-1/2 -translate-y-1/2 text-xl font-bold text-zinc-400 hover:text-white"
   >
     Ⓗ
@@ -523,9 +580,29 @@ const groupedHistory = historyData?.rows?.reduce(
     <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-5xl w-full max-h-[90vh] overflow-auto">
 
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">
-          Payment History - {historyData.month}
-        </h2>
+        <div className="flex items-center gap-3">
+  <button
+    type="button"
+    onClick={() => changeHistoryMonth(-1)}
+    disabled={historyLoading}
+    className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 font-bold disabled:opacity-50"
+  >
+    ◀
+  </button>
+
+  <h2 className="text-xl font-bold min-w-[230px] text-center">
+    Payment History - {historyData.month}
+  </h2>
+
+  <button
+    type="button"
+    onClick={() => changeHistoryMonth(1)}
+    disabled={historyLoading || isCurrentHistoryMonth}
+    className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 font-bold disabled:opacity-50"
+  >
+    ▶
+  </button>
+</div>
 
         <div className="flex items-center gap-3">
   <button
@@ -567,55 +644,84 @@ const groupedHistory = historyData?.rows?.reduce(
         </div>
       </div>
 
-<div className="space-y-6">
+<div className="space-y-10">
   {Object.entries(groupedHistory || {}).map(
-    ([payoutDate, rows]: [string, any]) => {
-      const payoutTotal = rows.reduce(
-        (sum: number, row: any) => sum + Number(row.net),
-        0
-      );
+    ([providerKey, providerGroup]: [string, any]) => (
+      <div key={providerKey} className="space-y-4">
+        <div className="flex items-center justify-between border-b border-zinc-700 pb-2">
+          <h3 className="text-xl font-bold text-pink-500">
+            {providerGroup.providerName}
+          </h3>
 
-      return (
-        <div
-          key={payoutDate}
-          className="border border-zinc-700 rounded-xl overflow-hidden"
-        >
-          <div className="bg-zinc-800 p-3 flex justify-between font-bold">
-            <span>Payout {payoutDate}</span>
-            <span>£{payoutTotal.toFixed(2)}</span>
-          </div>
-
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-700">
-                <th className="text-left p-2">Job</th>
-                <th className="text-left p-2">Date</th>
-                <th className="text-left p-2">Route</th>
-                <th className="text-left p-2">Gross</th>
-                <th className="text-left p-2">Fee</th>
-                <th className="text-left p-2">Net</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {rows.map((row: any, i: number) => (
-                <tr
-                  key={i}
-                  className="border-b border-zinc-800"
-                >
-                  <td className="p-2">{row.jobNumber}</td>
-                  <td className="p-2">{row.chargeDate}</td>
-                  <td className="p-2">{row.route}</td>
-                  <td className="p-2">£{row.gross}</td>
-                  <td className="p-2">£{row.fee}</td>
-                  <td className="p-2">£{row.net}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <span className="text-sm text-zinc-400">
+            {Object.values(providerGroup.payouts).reduce(
+              (count: number, rows: any) => count + rows.length,
+              0
+            )}{" "}
+            payments
+          </span>
         </div>
-      );
-    }
+
+        <div className="space-y-6">
+          {Object.entries(providerGroup.payouts).map(
+            ([payoutDate, rows]: [string, any]) => {
+              const payoutTotal = rows.reduce(
+                (sum: number, row: any) => sum + Number(row.net),
+                0
+              );
+
+              return (
+                <div
+                  key={`${providerKey}-${payoutDate}`}
+                  className="border border-zinc-700 rounded-xl overflow-hidden"
+                >
+                  <div className="bg-zinc-800 p-3 flex justify-between font-bold">
+                    <span>
+                      {providerKey === "gamma_pay"
+                        ? `Payout ${payoutDate}`
+                        : `Payment status: ${payoutDate}`}
+                    </span>
+
+                    <span>£{payoutTotal.toFixed(2)}</span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-700">
+                          <th className="text-left p-2">Job / Customer</th>
+                          <th className="text-left p-2">Date</th>
+                          <th className="text-left p-2">Route</th>
+                          <th className="text-left p-2">Gross</th>
+                          <th className="text-left p-2">Fee</th>
+                          <th className="text-left p-2">Net</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {rows.map((row: any, i: number) => (
+                          <tr
+                            key={`${row.paymentReference || i}-${i}`}
+                            className="border-b border-zinc-800"
+                          >
+                            <td className="p-2">{row.jobNumber}</td>
+                            <td className="p-2">{row.chargeDate}</td>
+                            <td className="p-2">{row.route}</td>
+                            <td className="p-2">£{row.gross}</td>
+                            <td className="p-2">£{row.fee}</td>
+                            <td className="p-2">£{row.net}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            }
+          )}
+        </div>
+      </div>
+    )
   )}
 </div>
 
