@@ -3,6 +3,27 @@ import { NextResponse } from "next/server";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
+async function serviceM8Get(path: string, apiKey: string) {
+  const res = await fetch(
+    `https://api.servicem8.com/api_1.0/${path}`,
+    {
+      method: "GET",
+      headers: {
+        "X-API-Key": apiKey,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`ServiceM8 error ${res.status}: ${text}`);
+  }
+
+  return res.json();
+}
+
 const GOCARDLESS_BASE_URL = "https://api.gocardless.com";
 const GOCARDLESS_VERSION = "2015-07-06";
 
@@ -34,6 +55,66 @@ function formatDateFromString(date?: string | null) {
 
 function pounds(amount: number | string | null | undefined) {
   return (Number(amount || 0) / 100).toFixed(2);
+}
+
+function serviceM8Pounds(
+  amount: number | string | null | undefined
+) {
+  return Number(amount || 0).toFixed(2);
+} 
+
+function estimateServiceM8Fee(
+  amount: number | string | null | undefined
+) {
+  const amountPounds = Number(amount || 0);
+
+  // Standard UK domestic ServiceM8 Pay card:
+  // 1.65% + 20p
+  const fee = amountPounds * 0.0165 + 0.2;
+
+  return fee.toFixed(2);
+}
+function estimateNextBusinessDay(
+  date: string | null | undefined
+) {
+  if (!date) return "Pending";
+
+  const payoutDate = new Date(String(date).replace(" ", "T"));
+
+  if (Number.isNaN(payoutDate.getTime())) {
+    return "Pending";
+  }
+
+  // Add one day first
+  payoutDate.setDate(payoutDate.getDate() + 1);
+
+  // If it lands on Saturday or Sunday, move to Monday
+  while (payoutDate.getDay() === 0 || payoutDate.getDay() === 6) {
+    payoutDate.setDate(payoutDate.getDate() + 1);
+  }
+
+  return payoutDate.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function estimateServiceM8Net(
+  amount: number | string | null | undefined
+) {
+  const amountPounds = Number(amount || 0);
+  const fee = amountPounds * 0.0165 + 0.2;
+
+  return (amountPounds - fee).toFixed(2);
+}
+
+function serviceM8DateTime(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day} 00:00:00`;
 }
 
 function estimateGoCardlessFee(
@@ -367,12 +448,92 @@ const charges = await stripe.charges.list({
       })
       .filter(Boolean);
 
-    /*
-     * GOCARDLESS
-     *
-     * This only reads payment data.
-     * It does not create, change or cancel any payments.
-     */
+      /*
+ * SERVICEM8 PAY
+ *
+ * Read-only history import.
+ */
+const serviceM8ApiKey = process.env.SERVICEM8_API_KEY;
+
+let serviceM8Rows: any[] = [];
+
+if (serviceM8ApiKey) {
+  const startDateTime = serviceM8DateTime(startOfMonth);
+  const endDateTime = serviceM8DateTime(startOfNextMonth);
+
+  const paymentFilter = encodeURIComponent(
+    [
+      "active eq 1",
+      "method eq 'ServiceM8 Pay'",
+      `timestamp gt '${startDateTime}'`,
+      `timestamp lt '${endDateTime}'`,
+    ].join(" and ")
+  );
+
+  const serviceM8Payments = await serviceM8Get(
+    `jobpayment.json?$filter=${paymentFilter}`,
+    serviceM8ApiKey
+  );
+
+  const matchingPayments = Array.isArray(serviceM8Payments)
+    ? serviceM8Payments
+    : [];
+    const jobNumberCache = new Map<string, string>();
+
+await Promise.all(
+  matchingPayments.map(async (payment: any) => {
+    const jobUuid = String(payment.job_uuid || "").trim();
+
+    if (!jobUuid || jobNumberCache.has(jobUuid)) {
+      return;
+    }
+
+    try {
+      const job = await serviceM8Get(
+        `job/${jobUuid}.json`,
+        serviceM8ApiKey
+      );
+
+      jobNumberCache.set(
+        jobUuid,
+        String(job.generated_job_id || "").trim()
+      );
+    } catch (error) {
+      console.error(
+        `ServiceM8 job lookup failed for ${jobUuid}:`,
+        error
+      );
+
+      jobNumberCache.set(jobUuid, "");
+    }
+  })
+);
+serviceM8Rows = matchingPayments.map((payment: any) => {
+  const jobUuid = String(payment.job_uuid || "").trim();
+  const amount = serviceM8Pounds(payment.amount);
+
+  return {
+    provider: "ServiceM8 Pay",
+    providerKey: "servicem8_pay",
+    jobNumber:
+      jobNumberCache.get(jobUuid) ||
+      jobUuid.slice(-8) ||
+      "Unknown",
+    chargeDate: formatDateFromString(payment.timestamp),
+    route:
+      Number(payment.is_deposit) === 1
+        ? "Deposit"
+        : "Online Payment",
+    gross: amount,
+    fee: estimateServiceM8Fee(amount),
+    net: estimateServiceM8Net(amount),
+    payoutDate: estimateNextBusinessDay(payment.timestamp),
+    status: "Paid",
+    paymentReference: String(payment.uuid || "").slice(-8),
+  };
+});
+}
+
     const goCardlessAccessToken =
       process.env.GOCARDLESS_ACCESS_TOKEN;
 
@@ -459,6 +620,7 @@ const reference =
 
     const rows = [
       ...gammaPayRows,
+      ...serviceM8Rows,
       ...goCardlessRows,
     ];
 
