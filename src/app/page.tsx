@@ -44,7 +44,7 @@ function HomeContent() {
   const [success, setSuccess] = useState(false);
   const [markComplete, setMarkComplete] = useState(false);
   const [showHeatCoverSignup, setShowHeatCoverSignup] = useState(false);
-  const [hcStep, setHcStep] = useState<"customer" | "plan">("customer");
+  const [hcStep, setHcStep] = useState<"customer" | "plan" | "script">("customer");
 
   const [hcPlan, setHcPlan] = useState<
   "v1" | "v2" | "v3" | "v4" | ""
@@ -874,6 +874,7 @@ const isCurrentHistoryMonth =
 
   <button
     type="button"
+    onClick={() => setHcStep("script")}
     disabled={
       !hcPlan ||
       (hcPlan !== "v3" && hcExcessFree === null)
@@ -883,6 +884,128 @@ const isCurrentHistoryMonth =
     Continue
   </button>
 </div>
+  </div>
+)}
+{/* SCRIPT SCREEN STARTS HERE */}
+{hcStep === "script" && (
+  <div className="mt-6 space-y-4">
+
+    <div>
+      <h3 className="text-lg font-bold">
+        Confirm Plan With Customer
+      </h3>
+
+      <p className="text-sm text-zinc-400 mt-1">
+        Read the following information to the customer.
+      </p>
+    </div>
+
+    <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700">
+      <div className="flex justify-between items-center">
+        <div>
+          <p className="font-bold">
+            {hcPlan === "v1"
+              ? "V1 — Gas"
+              : hcPlan === "v2"
+              ? "V2 — Boiler & Heating"
+              : hcPlan === "v3"
+              ? "V3 — Service Only"
+              : "V4 — Oil"}
+          </p>
+
+          {hcPlan !== "v3" && (
+            <p className="text-sm text-zinc-400 mt-1">
+              {hcExcessFree === true
+                ? "Excess Free"
+                : "£55 excess applies to breakdown claims"}
+            </p>
+          )}
+        </div>
+
+        <p className="font-bold text-pink-500">
+          £
+          {(
+            (hcPlan === "v1"
+              ? 27
+              : hcPlan === "v2"
+              ? 18
+              : hcPlan === "v3"
+              ? 12
+              : 38) +
+            (hcExcessFree === true ? 11 : 0)
+          ).toFixed(2)}
+          /mo
+        </p>
+      </div>
+    </div>
+
+    <div className="p-4 rounded-xl bg-yellow-900/40 border border-yellow-700">
+      <p className="text-sm font-bold text-yellow-400 mb-3">
+        READ TO CUSTOMER
+      </p>
+
+      {hcPlan === "v1" && (
+        <p>
+          Your HeatCover+ V1 plan covers your gas boiler, central heating
+          system and plumbing. Your monthly payment will be £
+          {(27 + (hcExcessFree === true ? 11 : 0)).toFixed(2)}.
+        </p>
+      )}
+
+      {hcPlan === "v2" && (
+        <p>
+          Your HeatCover+ V2 plan covers your boiler and central heating
+          system. Plumbing is not included. Your monthly payment will be £
+          {(18 + (hcExcessFree === true ? 11 : 0)).toFixed(2)}.
+        </p>
+      )}
+
+      {hcPlan === "v3" && (
+        <p>
+          Your HeatCover+ V3 plan is our service-only plan and includes
+          servicing and gas safety. Your monthly payment will be £12.00.
+        </p>
+      )}
+
+      {hcPlan === "v4" && (
+        <p>
+          Your HeatCover+ V4 plan covers your oil boiler, central heating
+          system and plumbing. Your monthly payment will be £
+          {(38 + (hcExcessFree === true ? 11 : 0)).toFixed(2)}.
+        </p>
+      )}
+
+      {hcPlan !== "v3" && hcExcessFree === false && (
+        <p className="mt-3">
+          A £55 excess is payable if you make a breakdown claim.
+        </p>
+      )}
+
+      {hcPlan !== "v3" && hcExcessFree === true && (
+        <p className="mt-3">
+          You have chosen Excess Free cover, so there is no £55 excess
+          to pay when making a breakdown claim.
+        </p>
+      )}
+    </div>
+
+    <div className="flex gap-3 pt-2">
+      <button
+        type="button"
+        onClick={() => setHcStep("plan")}
+        className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
+      >
+        Customer Agrees — Continue
+      </button>
+    </div>
+
   </div>
 )}
 
