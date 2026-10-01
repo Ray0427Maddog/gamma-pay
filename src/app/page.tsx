@@ -44,6 +44,12 @@ function HomeContent() {
   const [success, setSuccess] = useState(false);
   const [markComplete, setMarkComplete] = useState(false);
   const [showHeatCoverSignup, setShowHeatCoverSignup] = useState(false);
+  const [hcFirstName, setHcFirstName] = useState("");
+  const [hcLastName, setHcLastName] = useState("");
+  const [hcEmail, setHcEmail] = useState("");
+  const [hcPhone, setHcPhone] = useState("");
+  const [hcAddress, setHcAddress] = useState("");
+  const [hcPostcode, setHcPostcode] = useState("");
 
   const [machineStatus, setMachineStatus] = useState<
   "idle" | "waiting" | "success"
@@ -587,6 +593,66 @@ const isCurrentHistoryMonth =
           <p className="text-zinc-400">
             New customer signup
           </p>
+          <div className="mt-6 space-y-4">
+
+  <div className="grid grid-cols-2 gap-3">
+    <input
+      type="text"
+      placeholder="First name"
+      value={hcFirstName}
+      onChange={(e) => setHcFirstName(e.target.value)}
+      className="w-full p-4 rounded-xl bg-black border border-zinc-700"
+    />
+
+    <input
+      type="text"
+      placeholder="Last name"
+      value={hcLastName}
+      onChange={(e) => setHcLastName(e.target.value)}
+      className="w-full p-4 rounded-xl bg-black border border-zinc-700"
+    />
+  </div>
+
+  <input
+    type="email"
+    placeholder="Email address"
+    value={hcEmail}
+    onChange={(e) => setHcEmail(e.target.value)}
+    className="w-full p-4 rounded-xl bg-black border border-zinc-700"
+  />
+
+  <input
+    type="tel"
+    placeholder="Phone number"
+    value={hcPhone}
+    onChange={(e) => setHcPhone(e.target.value)}
+    className="w-full p-4 rounded-xl bg-black border border-zinc-700"
+  />
+
+  <textarea
+    placeholder="Address"
+    value={hcAddress}
+    onChange={(e) => setHcAddress(e.target.value)}
+    rows={3}
+    className="w-full p-4 rounded-xl bg-black border border-zinc-700 resize-none"
+  />
+
+  <input
+    type="text"
+    placeholder="Postcode"
+    value={hcPostcode}
+    onChange={(e) => setHcPostcode(e.target.value)}
+    className="w-full p-4 rounded-xl bg-black border border-zinc-700"
+  />
+
+  <button
+    type="button"
+    className="w-full p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
+  >
+    Continue
+  </button>
+
+</div>
         </div>
 
       </div>
