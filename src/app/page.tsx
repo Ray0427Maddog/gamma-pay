@@ -44,6 +44,13 @@ function HomeContent() {
   const [success, setSuccess] = useState(false);
   const [markComplete, setMarkComplete] = useState(false);
   const [showHeatCoverSignup, setShowHeatCoverSignup] = useState(false);
+  const [hcStep, setHcStep] = useState<"customer" | "plan">("customer");
+
+  const [hcPlan, setHcPlan] = useState<
+  "v1" | "v2" | "v3" | "v4" | ""
+  >("");
+
+const [hcExcessFree, setHcExcessFree] = useState(false);
   const [hcFirstName, setHcFirstName] = useState("");
   const [hcLastName, setHcLastName] = useState("");
   const [hcEmail, setHcEmail] = useState("");
@@ -593,6 +600,7 @@ const isCurrentHistoryMonth =
           <p className="text-zinc-400">
             New customer signup
           </p>
+          {hcStep === "customer" && (
           <div className="mt-6 space-y-4">
 
   <div className="grid grid-cols-2 gap-3">
@@ -646,13 +654,102 @@ const isCurrentHistoryMonth =
   />
 
   <button
-    type="button"
-    className="w-full p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
-  >
-    Continue
-  </button>
+  type="button"
+  onClick={() => {
+    if (
+      !hcFirstName.trim() ||
+      !hcLastName.trim() ||
+      !hcEmail.trim() ||
+      !hcPhone.trim() ||
+      !hcAddress.trim() ||
+      !hcPostcode.trim()
+    ) {
+      alert("Please complete all customer details");
+      return;
+    }
+
+    setHcStep("plan");
+  }}
+  className="w-full p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
+>
+  Continue
+</button>
 
 </div>
+)}
+
+{hcStep === "plan" && (
+  <div className="mt-6 space-y-4">
+
+    <div>
+      <h3 className="text-lg font-bold">
+        Select HeatCover+ Plan
+      </h3>
+      <p className="text-sm text-zinc-400 mt-1">
+        Choose the plan agreed with the customer.
+      </p>
+    </div>
+
+    {[
+      {
+        id: "v1",
+        name: "V1 — Gas",
+        description: "Boiler, heating & plumbing",
+        price: 27,
+      },
+      {
+        id: "v2",
+        name: "V2 — Boiler & Heating",
+        description: "Boiler & heating cover — no plumbing",
+        price: 18,
+      },
+      {
+        id: "v3",
+        name: "V3 — Service Only",
+        description: "Servicing / gas safety only",
+        price: 12,
+      },
+      {
+        id: "v4",
+        name: "V4 — Oil",
+        description: "Oil boiler, heating & plumbing",
+        price: 38,
+      },
+    ].map((plan) => (
+      <button
+        key={plan.id}
+        type="button"
+        onClick={() => {
+          setHcPlan(plan.id as "v1" | "v2" | "v3" | "v4");
+
+          if (plan.id === "v3") {
+            setHcExcessFree(false);
+          }
+        }}
+        className={`w-full p-4 rounded-xl border text-left ${
+          hcPlan === plan.id
+            ? "bg-purple-600 border-pink-500"
+            : "bg-black border-zinc-700"
+        }`}
+      >
+        <div className="flex justify-between items-center gap-4">
+          <div>
+            <p className="font-bold">{plan.name}</p>
+            <p className="text-sm text-zinc-400">
+              {plan.description}
+            </p>
+          </div>
+
+          <p className="font-bold whitespace-nowrap">
+            £{plan.price}/mo
+          </p>
+        </div>
+      </button>
+    ))}
+
+  </div>
+)}
+
         </div>
 
       </div>
