@@ -44,7 +44,9 @@ function HomeContent() {
   const [success, setSuccess] = useState(false);
   const [markComplete, setMarkComplete] = useState(false);
   const [showHeatCoverSignup, setShowHeatCoverSignup] = useState(false);
-  const [hcStep, setHcStep] = useState<"customer" | "plan" | "script">("customer");
+  const [hcStep, setHcStep] = useState<
+  "customer" | "plan" | "script" | "terms"
+>("customer");
 
   const [hcPlan, setHcPlan] = useState<
   "v1" | "v2" | "v3" | "v4" | ""
@@ -945,35 +947,47 @@ const isCurrentHistoryMonth =
       </p>
 
       {hcPlan === "v1" && (
-        <p>
-          Your HeatCover+ V1 plan covers your gas boiler, central heating
-          system and plumbing. Your monthly payment will be £
-          {(27 + (hcExcessFree === true ? 11 : 0)).toFixed(2)}.
-        </p>
-      )}
+  <p>
+    Your HeatCover+ V1 plan covers your gas boiler, central heating
+    system, gas pipework, drains and plumbing. It also includes your
+    annual boiler service, priority customer support, service reminders
+    and access to the customer portal. Your monthly payment will be £
+    {(27 + (hcExcessFree === true ? 11 : 0)).toFixed(2)}.
+  </p>
+)}
 
       {hcPlan === "v2" && (
-        <p>
-          Your HeatCover+ V2 plan covers your boiler and central heating
-          system. Plumbing is not included. Your monthly payment will be £
-          {(18 + (hcExcessFree === true ? 11 : 0)).toFixed(2)}.
-        </p>
-      )}
+  <p>
+    Your HeatCover+ V2 plan covers your gas boiler, central heating
+    system and gas pipework. It also includes your annual boiler service,
+    priority customer support, service reminders and access to the
+    customer portal. Please note that drains and plumbing are not covered
+    under this plan. Your monthly payment will be £
+    {(18 + (hcExcessFree === true ? 11 : 0)).toFixed(2)}.
+  </p>
+)}
 
       {hcPlan === "v3" && (
-        <p>
-          Your HeatCover+ V3 plan is our service-only plan and includes
-          servicing and gas safety. Your monthly payment will be £12.00.
-        </p>
-      )}
+  <p>
+    Your HeatCover+ V3 plan includes your annual boiler service,
+    priority customer support, service reminders and access to the
+    customer portal. A gas safety check is also included for rented
+    properties. Please note that this is a service-only plan and does
+    not include breakdown cover. Your monthly payment will be £12.00.
+  </p>
+)}
 
       {hcPlan === "v4" && (
-        <p>
-          Your HeatCover+ V4 plan covers your oil boiler, central heating
-          system and plumbing. Your monthly payment will be £
-          {(38 + (hcExcessFree === true ? 11 : 0)).toFixed(2)}.
-        </p>
-      )}
+  <p>
+    Your HeatCover+ V4 plan covers your oil boiler, central heating
+    system, oil lines, drains and plumbing. It also includes your
+    annual boiler service, priority customer support, service reminders
+    and access to the customer portal. A CD12 landlord oil installation
+    check is also included for rented properties. Your monthly payment
+    will be £
+    {(38 + (hcExcessFree === true ? 11 : 0)).toFixed(2)}.
+  </p>
+)}
 
       {hcPlan !== "v3" && hcExcessFree === false && (
         <p className="mt-3">
@@ -993,6 +1007,78 @@ const isCurrentHistoryMonth =
       <button
         type="button"
         onClick={() => setHcStep("plan")}
+        className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setHcStep("terms")}
+        className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
+      >
+        Customer Agrees — Continue
+      </button>
+    </div>
+
+  </div>
+)}
+
+{/* TERMS SCREEN STARTS HERE */}
+{hcStep === "terms" && (
+  <div className="mt-6 space-y-4">
+
+    <div>
+      <h3 className="text-lg font-bold">
+        Important Plan Information
+      </h3>
+
+      <p className="text-sm text-zinc-400 mt-1">
+        Read the following to the customer before continuing.
+      </p>
+    </div>
+
+    <div className="p-4 rounded-xl bg-yellow-900/40 border border-yellow-700">
+      <p className="text-sm font-bold text-yellow-400 mb-3">
+        READ TO CUSTOMER
+      </p>
+
+      <div className="space-y-3">
+        <p>
+          Before we set up your HeatCover+ plan, I just need to make you
+          aware of a few important points.
+        </p>
+
+        <p>
+          There is a 30-day cooling-down period before breakdown cover
+          becomes available.
+        </p>
+
+        <p>
+          Your property and heating system will need to pass our initial
+          survey before cover can be confirmed.
+        </p>
+
+        <p>
+          To qualify for your included annual boiler service, the plan
+          must have been active for at least five consecutive months.
+        </p>
+
+        <p>
+          HeatCover+ is a monthly rolling plan and you can cancel at any
+          time.
+        </p>
+
+        <p className="font-bold">
+          Are you happy to continue on that basis?
+        </p>
+      </div>
+    </div>
+
+    <div className="flex gap-3 pt-2">
+      <button
+        type="button"
+        onClick={() => setHcStep("script")}
         className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
       >
         Back
