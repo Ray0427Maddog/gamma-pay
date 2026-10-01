@@ -45,7 +45,7 @@ function HomeContent() {
   const [markComplete, setMarkComplete] = useState(false);
   const [showHeatCoverSignup, setShowHeatCoverSignup] = useState(false);
   const [hcStep, setHcStep] = useState<
-  "customer" | "plan" | "script" | "terms" | "ddConsent"
+  "customer" | "plan" | "script" | "terms" | "ddConsent" | "bankDetails"
 >("customer");
 
   const [hcPlan, setHcPlan] = useState<
@@ -59,6 +59,9 @@ function HomeContent() {
   const [hcPhone, setHcPhone] = useState("");
   const [hcAddress, setHcAddress] = useState("");
   const [hcPostcode, setHcPostcode] = useState("");
+  const [hcSortCode, setHcSortCode] = useState("");
+const [hcAccountNumber, setHcAccountNumber] = useState("");
+const [hcPaymentDay, setHcPaymentDay] = useState<number | null>(null);
 
   const [machineStatus, setMachineStatus] = useState<
   "idle" | "waiting" | "success"
@@ -1158,9 +1161,143 @@ const isCurrentHistoryMonth =
 
       <button
         type="button"
+        onClick={() => setHcStep("bankDetails")}
         className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
       >
         Customer Consents — Continue
+      </button>
+    </div>
+
+  </div>
+)}
+
+{/* BANK DETAILS SCREEN STARTS HERE */}
+{hcStep === "bankDetails" && (
+  <div className="mt-6 space-y-4">
+
+    <div>
+      <h3 className="text-lg font-bold">
+        Direct Debit Details
+      </h3>
+
+      <p className="text-sm text-zinc-400 mt-1">
+        Enter the customer's bank details and preferred monthly payment date.
+      </p>
+    </div>
+
+    <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-4">
+
+      <div>
+        <label className="block text-sm font-bold mb-2">
+          Sort code
+        </label>
+
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="00-00-00"
+          maxLength={8}
+          value={hcSortCode}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
+
+            const formatted = digits
+              .replace(/^(\d{2})(\d)/, "$1-$2")
+              .replace(/^(\d{2})-(\d{2})(\d)/, "$1-$2-$3");
+
+            setHcSortCode(formatted);
+          }}
+          className="w-full p-4 rounded-xl bg-black border border-zinc-700 text-lg tracking-wider"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-bold mb-2">
+          Account number
+        </label>
+
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="12345678"
+          maxLength={8}
+          value={hcAccountNumber}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+            setHcAccountNumber(digits);
+          }}
+          className="w-full p-4 rounded-xl bg-black border border-zinc-700 text-lg tracking-wider"
+        />
+      </div>
+
+    </div>
+
+    <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-3">
+
+      <div>
+        <p className="font-bold">
+          Preferred monthly payment date
+        </p>
+
+        <p className="text-sm text-zinc-400 mt-1">
+          This only determines the Direct Debit collection date. It does not
+          change the HeatCover+ policy start date.
+        </p>
+      </div>
+
+      <select
+        value={hcPaymentDay ?? ""}
+        onChange={(e) =>
+          setHcPaymentDay(e.target.value ? Number(e.target.value) : null)
+        }
+        className="w-full p-4 rounded-xl bg-black border border-zinc-700"
+      >
+        <option value="">Select payment date</option>
+
+        {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+          <option key={day} value={day}>
+            {day}
+            {day === 1
+              ? "st"
+              : day === 2
+              ? "nd"
+              : day === 3
+              ? "rd"
+              : day === 21
+              ? "st"
+              : day === 22
+              ? "nd"
+              : day === 23
+              ? "rd"
+              : "th"}{" "}
+            of each month
+          </option>
+        ))}
+      </select>
+
+    </div>
+
+    <div className="flex gap-3 pt-2">
+      <button
+        type="button"
+        onClick={() => setHcStep("ddConsent")}
+        className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        disabled={
+          hcSortCode.replace(/\D/g, "").length !== 6 ||
+          hcAccountNumber.length !== 8 ||
+          hcPaymentDay === null
+        }
+        className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Review Details
       </button>
     </div>
 
