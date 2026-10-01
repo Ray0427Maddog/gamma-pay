@@ -50,7 +50,7 @@ function HomeContent() {
   "v1" | "v2" | "v3" | "v4" | ""
   >("");
 
-const [hcExcessFree, setHcExcessFree] = useState(false);
+  const [hcExcessFree, setHcExcessFree] = useState<boolean | null>(null);
   const [hcFirstName, setHcFirstName] = useState("");
   const [hcLastName, setHcLastName] = useState("");
   const [hcEmail, setHcEmail] = useState("");
@@ -690,47 +690,65 @@ const isCurrentHistoryMonth =
       </p>
     </div>
 
-    {[
-      {
-        id: "v1",
-        name: "V1 — Gas",
-        description: "Boiler, heating & plumbing",
-        price: 27,
-      },
-      {
-        id: "v2",
-        name: "V2 — Boiler & Heating",
-        description: "Boiler & heating cover — no plumbing",
-        price: 18,
-      },
-      {
-        id: "v3",
-        name: "V3 — Service Only",
-        description: "Servicing / gas safety only",
-        price: 12,
-      },
-      {
-        id: "v4",
-        name: "V4 — Oil",
-        description: "Oil boiler, heating & plumbing",
-        price: 38,
-      },
-    ].map((plan) => (
+{[
+  {
+    id: "v1",
+    name: "V1 — Gas",
+    description: "Boiler, heating & plumbing",
+    priceLabel: "£27/mo",
+    disabled: false,
+  },
+  {
+    id: "v1int",
+    name: "V1 INT — Instant Cover",
+    description: "Existing faults covered — INTERNAL",
+    priceLabel: "£149 upfront",
+    disabled: true,
+  },
+  {
+    id: "v2",
+    name: "V2 — Boiler & Heating",
+    description: "Boiler & heating cover — no plumbing",
+    priceLabel: "£18/mo",
+    disabled: false,
+  },
+  {
+    id: "v3",
+    name: "V3 — Service Only",
+    description: "Servicing / gas safety only",
+    priceLabel: "£12/mo",
+    disabled: false,
+  },
+  {
+    id: "v4",
+    name: "V4 — Oil",
+    description: "Oil boiler, heating & plumbing",
+    priceLabel: "£38/mo",
+    disabled: false,
+  },
+  {
+    id: "v4int",
+    name: "V4 INT — Instant Cover",
+    description: "Existing faults covered — INTERNAL",
+    priceLabel: "£249 upfront",
+    disabled: true,
+  },
+].map((plan) => (
       <button
         key={plan.id}
         type="button"
+        disabled={plan.disabled}
         onClick={() => {
-          setHcPlan(plan.id as "v1" | "v2" | "v3" | "v4");
-
-          if (plan.id === "v3") {
-            setHcExcessFree(false);
-          }
-        }}
+        setHcPlan(plan.id as "v1" | "v2" | "v3" | "v4");
+        setHcExcessFree(null);
+       }}
         className={`w-full p-4 rounded-xl border text-left ${
-          hcPlan === plan.id
-            ? "bg-purple-600 border-pink-500"
-            : "bg-black border-zinc-700"
-        }`}
+  plan.disabled
+    ? "bg-zinc-800 border-zinc-700 opacity-50 cursor-not-allowed"
+    : hcPlan === plan.id
+    ? "bg-purple-600 border-pink-500"
+    : "bg-black border-zinc-700"
+}`}
       >
         <div className="flex justify-between items-center gap-4">
           <div>
@@ -741,12 +759,130 @@ const isCurrentHistoryMonth =
           </div>
 
           <p className="font-bold whitespace-nowrap">
-            £{plan.price}/mo
-          </p>
+  {plan.priceLabel}
+</p>
         </div>
       </button>
     ))}
 
+{hcPlan && hcPlan !== "v3" && (
+  <div className="p-4 rounded-xl bg-black border border-zinc-700 space-y-3">
+
+    {(hcPlan === "v1" || hcPlan === "v2" || hcPlan === "v4") && (
+      <div className="p-3 rounded-lg bg-yellow-900/40 border border-yellow-700">
+        <p className="text-sm font-bold text-yellow-400">
+          ASK CUSTOMER
+        </p>
+        <p className="text-sm mt-1">
+  Would you like to make your plan Excess Free for an additional £11 per month?
+  This means you will not have to pay the £55 excess if you make a breakdown claim.
+</p>
+      </div>
+    )}
+
+    <div>
+      <p className="font-bold">Excess Option</p>
+      <p className="text-sm text-zinc-400">
+        Select the customer's chosen excess.
+      </p>
+    </div>
+
+    <button
+  type="button"
+  onClick={() => setHcExcessFree(false)}
+  className={`w-full p-4 rounded-xl border text-left ${
+    hcExcessFree === false
+      ? "bg-purple-600 border-pink-500"
+      : "bg-zinc-900 border-zinc-700"
+  }`}
+>
+      <div className="flex justify-between">
+        <div>
+          <p className="font-bold">£55 Excess</p>
+          <p className="text-sm text-zinc-400">
+            Standard plan
+          </p>
+        </div>
+
+        <span className="font-bold">Included</span>
+      </div>
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setHcExcessFree(true)}
+      className={`w-full p-4 rounded-xl border text-left ${
+        hcExcessFree === true
+          ? "bg-purple-600 border-pink-500"
+          : "bg-zinc-900 border-zinc-700"
+      }`}
+    >
+      <div className="flex justify-between">
+        <div>
+          <p className="font-bold">Excess Free</p>
+          <p className="text-sm text-zinc-400">
+            No £55 excess
+          </p>
+        </div>
+
+        <span className="font-bold">+£11/mo</span>
+      </div>
+    </button>
+
+  </div>
+)}
+{hcPlan && (
+  <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700">
+    <p className="text-sm text-zinc-400">
+      Monthly payment
+    </p>
+
+    <p className="text-3xl font-bold text-pink-500">
+      £
+      {(
+        (hcPlan === "v1"
+          ? 27
+          : hcPlan === "v2"
+          ? 18
+          : hcPlan === "v3"
+          ? 12
+          : 38) +
+        (hcExcessFree === true ? 11 : 0)
+      ).toFixed(2)}
+    </p>
+
+    {hcExcessFree === true && (
+      <p className="text-sm text-zinc-400 mt-1">
+        Excess Free included
+      </p>
+    )}
+  </div>
+)}
+
+<div className="flex gap-3 pt-2">
+  <button
+    type="button"
+    onClick={() => {
+      setHcStep("customer");
+      setHcPlan("");
+      setHcExcessFree(null);
+    }}
+    className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
+  >
+    Back
+  </button>
+
+  <button
+    type="button"
+    disabled={
+      !hcPlan ||
+      (hcPlan !== "v3" && hcExcessFree === null)
+    }
+    className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+  >
+    Continue
+  </button>
+</div>
   </div>
 )}
 
