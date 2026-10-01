@@ -45,7 +45,7 @@ function HomeContent() {
   const [markComplete, setMarkComplete] = useState(false);
   const [showHeatCoverSignup, setShowHeatCoverSignup] = useState(false);
   const [hcStep, setHcStep] = useState<
-  "customer" | "plan" | "script" | "terms"
+  "customer" | "plan" | "script" | "terms" | "ddConsent"
 >("customer");
 
   const [hcPlan, setHcPlan] = useState<
@@ -1086,9 +1086,81 @@ const isCurrentHistoryMonth =
 
       <button
         type="button"
+        onClick={() => setHcStep("ddConsent")}
         className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
       >
         Customer Agrees — Continue
+      </button>
+    </div>
+
+  </div>
+)}
+
+{/* DIRECT DEBIT CONSENT SCREEN STARTS HERE */}
+{hcStep === "ddConsent" && (
+  <div className="mt-6 space-y-4">
+
+    <div>
+      <h3 className="text-lg font-bold">
+        Direct Debit Setup
+      </h3>
+
+      <p className="text-sm text-zinc-400 mt-1">
+        Obtain the customer's consent before collecting their bank details.
+      </p>
+    </div>
+
+    <div className="p-4 rounded-xl bg-yellow-900/40 border border-yellow-700">
+      <p className="text-sm font-bold text-yellow-400 mb-3">
+        READ TO CUSTOMER
+      </p>
+
+      <div className="space-y-3">
+        <p>
+          Great, thank you. Your monthly HeatCover+ payment will be
+          collected by Direct Debit through our payment collection
+          partner, GoCardless. GoCardless will appear on your bank
+          statement.
+        </p>
+
+        <p>
+          To set this up, I'm going to ask you for the sort code and
+          account number of the account you'd like the payments to come
+          from.
+        </p>
+
+        <p>
+          By continuing, you're confirming that you're authorised to set
+          up a Direct Debit on this account and that you're happy for us
+          to collect your agreed HeatCover+ monthly payment by Direct
+          Debit through GoCardless.
+        </p>
+
+        <p>
+          You'll receive confirmation of your Direct Debit and advance
+          notice of your payments.
+        </p>
+
+        <p className="font-bold">
+          Are you happy for me to set up the Direct Debit now?
+        </p>
+      </div>
+    </div>
+
+    <div className="flex gap-3 pt-2">
+      <button
+        type="button"
+        onClick={() => setHcStep("terms")}
+        className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
+      >
+        Customer Consents — Continue
       </button>
     </div>
 
