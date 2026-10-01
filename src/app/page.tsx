@@ -43,6 +43,7 @@ function HomeContent() {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [success, setSuccess] = useState(false);
   const [markComplete, setMarkComplete] = useState(false);
+  const [showHeatCoverSignup, setShowHeatCoverSignup] = useState(false);
 
   const [machineStatus, setMachineStatus] = useState<
   "idle" | "waiting" | "success"
@@ -559,6 +560,40 @@ const isCurrentHistoryMonth =
   historyDate.year === now.getFullYear() &&
   historyDate.month === now.getMonth() + 1;
 
+  if (showHeatCoverSignup) {
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col items-center p-6">
+      <div className="w-full max-w-md">
+
+        <div className="relative mb-8">
+          <button
+            type="button"
+            onClick={() => setShowHeatCoverSignup(false)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+          >
+            ← Back
+          </button>
+
+          <h1 className="text-3xl font-bold text-pink-500 text-center">
+            HeatCover+
+          </h1>
+        </div>
+
+        <div className="p-6 rounded-xl bg-zinc-900 border border-zinc-700">
+          <h2 className="text-xl font-bold mb-2">
+            Add HeatCover+ Customer
+          </h2>
+
+          <p className="text-zinc-400">
+            New customer signup
+          </p>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
 <div className="relative w-full max-w-md mb-2">
@@ -758,6 +793,22 @@ const isCurrentHistoryMonth =
       )}
 
       <div className="w-full max-w-md space-y-4">
+
+      <button
+  type="button"
+  onClick={() => setShowHeatCoverSignup(true)}
+  className="w-full p-4 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold"
+>
+  + Add HeatCover+ Customer
+</button>
+
+<div className="flex items-center gap-3 py-2">
+  <div className="h-px flex-1 bg-zinc-700" />
+  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+    Payments
+  </span>
+  <div className="h-px flex-1 bg-zinc-700" />
+</div>
         <div className="flex gap-2">
           <input
             type="text"
