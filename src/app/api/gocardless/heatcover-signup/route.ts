@@ -265,8 +265,11 @@ try {
 
 if (!customerRes.ok) {
   console.error("GoCardless customer creation failed:", {
-  status: customerRes.status,
-});
+    status: customerRes.status,
+    statusText: customerRes.statusText,
+    response: customerData,
+    raw: customerText,
+  });
 
   return NextResponse.json(
     {
