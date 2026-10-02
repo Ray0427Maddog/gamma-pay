@@ -53,7 +53,7 @@ function HomeContent() {
   "bankDetails" |
   "ddAuthorisation" |
   "review"
->("customer");
+>("plan");
 
   const [hcPlan, setHcPlan] = useState<
   "v1" | "v2" | "v3" | "v4" | ""
@@ -759,12 +759,45 @@ const isCurrentHistoryMonth =
       return;
     }
 
-    setHcStep("plan");
+    setHcStep("terms");
   }}
   className="w-full p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
 >
   Continue
 </button>
+
+<div className="flex gap-3 pt-2">
+  <button
+    type="button"
+    onClick={() => setHcStep("script")}
+    className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
+  >
+    Back
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      if (
+        !hcFirstName.trim() ||
+        !hcLastName.trim() ||
+        !hcEmail.trim() ||
+        !hcPhone.trim() ||
+        !hcAddress.trim() ||
+        !hcCity.trim() ||
+        !hcPostcode.trim()
+      ) {
+        alert("Please complete all customer details");
+        return;
+      }
+
+      setHcStep("terms");
+    }}
+    className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
+  >
+    Continue
+  </button>
+</div>
 
 </div>
 )}
@@ -963,16 +996,16 @@ const isCurrentHistoryMonth =
 
 <div className="flex gap-3 pt-2">
   <button
-    type="button"
-    onClick={() => {
-      setHcStep("customer");
-      setHcPlan("");
-      setHcExcessFree(null);
-    }}
-    className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
-  >
-    Back
-  </button>
+  type="button"
+  onClick={() => {
+    setShowHeatCoverSignup(false);
+    setHcPlan("");
+    setHcExcessFree(null);
+  }}
+  className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
+>
+  Back
+</button>
 
   <button
     type="button"
@@ -1114,7 +1147,7 @@ const isCurrentHistoryMonth =
 
       <button
         type="button"
-        onClick={() => setHcStep("terms")}
+        onClick={() => setHcStep("customer")}
         className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
       >
         Customer Agrees — Continue
@@ -1178,7 +1211,7 @@ const isCurrentHistoryMonth =
     <div className="flex gap-3 pt-2">
       <button
         type="button"
-        onClick={() => setHcStep("script")}
+        onClick={() => setHcStep("customer")}
         className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
       >
         Back
