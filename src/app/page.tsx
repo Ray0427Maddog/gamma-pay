@@ -1581,9 +1581,6 @@ const isCurrentHistoryMonth =
 
     </div>
 
-  </div>
-)}
-
 {/* DIRECT DEBIT GUARANTEE - READ IF CUSTOMER CHOOSES NOW */}
 <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700">
 
@@ -1617,6 +1614,8 @@ const isCurrentHistoryMonth =
 
   </div>
 </div>
+  </div>
+)}
 
 {/* REVIEW SCREEN STARTS HERE */}
 {hcStep === "review" && (
