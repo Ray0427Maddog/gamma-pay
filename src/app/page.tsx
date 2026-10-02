@@ -45,7 +45,13 @@ function HomeContent() {
   const [markComplete, setMarkComplete] = useState(false);
   const [showHeatCoverSignup, setShowHeatCoverSignup] = useState(false);
   const [hcStep, setHcStep] = useState<
-  "customer" | "plan" | "script" | "terms" | "ddConsent" | "bankDetails"
+  "customer" |
+  "plan" |
+  "script" |
+  "terms" |
+  "ddConsent" |
+  "bankDetails" |
+  "review"
 >("customer");
 
   const [hcPlan, setHcPlan] = useState<
@@ -1295,9 +1301,191 @@ const isCurrentHistoryMonth =
           hcAccountNumber.length !== 8 ||
           hcPaymentDay === null
         }
+        onClick={() => setHcStep("review")}
         className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Review Details
+      </button>
+    </div>
+
+  </div>
+)}
+
+{/* REVIEW SCREEN STARTS HERE */}
+{hcStep === "review" && (
+  <div className="mt-6 space-y-4">
+
+    <div>
+      <h3 className="text-lg font-bold">
+        Review HeatCover+ Signup
+      </h3>
+
+      <p className="text-sm text-zinc-400 mt-1">
+        Check everything carefully before creating the customer's plan.
+      </p>
+    </div>
+
+    {/* CUSTOMER */}
+    <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-2">
+      <p className="text-sm font-bold text-pink-500">
+        CUSTOMER
+      </p>
+
+      <p className="font-bold">
+        {hcFirstName} {hcLastName}
+      </p>
+
+      <p className="text-sm text-zinc-300">
+        {hcEmail}
+      </p>
+
+      <p className="text-sm text-zinc-300">
+        {hcPhone}
+      </p>
+
+      <p className="text-sm text-zinc-300 whitespace-pre-line">
+        {hcAddress}
+        <br />
+        {hcPostcode}
+      </p>
+    </div>
+
+    {/* PLAN */}
+    <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-3">
+      <p className="text-sm font-bold text-pink-500">
+        HEATCOVER+ PLAN
+      </p>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Plan</span>
+        <span className="font-bold">
+          {hcPlan === "v1"
+            ? "V1 — Gas"
+            : hcPlan === "v2"
+            ? "V2 — Boiler & Heating"
+            : hcPlan === "v3"
+            ? "V3 — Service Only"
+            : "V4 — Oil"}
+        </span>
+      </div>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Excess</span>
+        <span className="font-bold">
+          {hcPlan === "v3"
+            ? "Not applicable"
+            : hcExcessFree === true
+            ? "Excess Free"
+            : "£55 per breakdown"}
+        </span>
+      </div>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Monthly payment</span>
+        <span className="font-bold text-pink-500">
+          £
+          {(
+            (hcPlan === "v1"
+              ? 27
+              : hcPlan === "v2"
+              ? 18
+              : hcPlan === "v3"
+              ? 12
+              : 38) +
+            (hcExcessFree === true ? 11 : 0)
+          ).toFixed(2)}
+        </span>
+      </div>
+    </div>
+
+    {/* POLICY */}
+    <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-3">
+      <p className="text-sm font-bold text-pink-500">
+        POLICY
+      </p>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Policy start</span>
+        <span className="font-bold">
+          {new Date().toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}
+        </span>
+      </div>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Breakdown cover</span>
+        <span className="font-bold">
+          {hcPlan === "v3" ? "Not applicable" : "After 30 days"}
+        </span>
+      </div>
+    </div>
+
+    {/* DIRECT DEBIT */}
+    <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-3">
+      <p className="text-sm font-bold text-pink-500">
+        DIRECT DEBIT
+      </p>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Sort code</span>
+        <span className="font-bold">
+          ••-••-{hcSortCode.replace(/\D/g, "").slice(-2)}
+        </span>
+      </div>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Account</span>
+        <span className="font-bold">
+          ••••{hcAccountNumber.slice(-4)}
+        </span>
+      </div>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Payment date</span>
+        <span className="font-bold">
+          {hcPaymentDay}
+          {hcPaymentDay === 1 ||
+          hcPaymentDay === 21
+            ? "st"
+            : hcPaymentDay === 2 ||
+              hcPaymentDay === 22
+            ? "nd"
+            : hcPaymentDay === 3 ||
+              hcPaymentDay === 23
+            ? "rd"
+            : "th"}{" "}
+          of each month
+        </span>
+      </div>
+    </div>
+
+    <div className="p-3 rounded-xl bg-yellow-900/40 border border-yellow-700">
+      <p className="text-sm font-bold text-yellow-400">
+        FINAL CHECK
+      </p>
+      <p className="text-sm mt-1">
+        Confirm the customer details, selected plan and payment details
+        are correct before creating HeatCover+.
+      </p>
+    </div>
+
+    <div className="flex gap-3 pt-2">
+      <button
+        type="button"
+        onClick={() => setHcStep("bankDetails")}
+        className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
+      >
+        Confirm & Create HeatCover+
       </button>
     </div>
 
