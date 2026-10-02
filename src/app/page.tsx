@@ -743,29 +743,6 @@ const isCurrentHistoryMonth =
     className="w-full p-4 rounded-xl bg-black border border-zinc-700"
   />
 
-  <button
-  type="button"
-  onClick={() => {
-    if (
-      !hcFirstName.trim() ||
-      !hcLastName.trim() ||
-      !hcEmail.trim() ||
-      !hcPhone.trim() ||
-      !hcAddress.trim() ||
-      !hcCity.trim() ||
-      !hcPostcode.trim()
-    ) {
-      alert("Please complete all customer details");
-      return;
-    }
-
-    setHcStep("terms");
-  }}
-  className="w-full p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
->
-  Continue
-</button>
-
 <div className="flex gap-3 pt-2">
   <button
     type="button"
