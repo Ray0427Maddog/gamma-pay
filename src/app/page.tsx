@@ -51,6 +51,7 @@ function HomeContent() {
   "terms" |
   "ddConsent" |
   "bankDetails" |
+  "ddAuthorisation" |
   "review"
 >("customer");
 
@@ -59,15 +60,21 @@ function HomeContent() {
   >("");
 
   const [hcExcessFree, setHcExcessFree] = useState<boolean | null>(null);
+  const [hcSignupId, setHcSignupId] = useState("");
   const [hcFirstName, setHcFirstName] = useState("");
   const [hcLastName, setHcLastName] = useState("");
   const [hcEmail, setHcEmail] = useState("");
   const [hcPhone, setHcPhone] = useState("");
   const [hcAddress, setHcAddress] = useState("");
+  const [hcCity, setHcCity] = useState("");
   const [hcPostcode, setHcPostcode] = useState("");
   const [hcSortCode, setHcSortCode] = useState("");
 const [hcAccountNumber, setHcAccountNumber] = useState("");
 const [hcPaymentDay, setHcPaymentDay] = useState<number | null>(null);
+const [hcAccountHolderName, setHcAccountHolderName] = useState("");
+
+const [hcSubmitting, setHcSubmitting] = useState(false);
+const [hcSubmitError, setHcSubmitError] = useState("");
 
   const [machineStatus, setMachineStatus] = useState<
   "idle" | "waiting" | "success"
@@ -142,7 +149,71 @@ const amountToCharge = isGcMode
 
   const isPaid = Boolean(job?.isFullyPaid);
 
-  async function findJob(showAlerts = true) {
+async function submitHeatCoverSignup() {
+  if (hcSubmitting) return;
+
+  setHcSubmitting(true);
+  setHcSubmitError("");
+
+  try {
+    const res = await fetch("/api/gocardless/heatcover-signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        signupId: hcSignupId,
+
+        firstName: hcFirstName.trim(),
+        lastName: hcLastName.trim(),
+        email: hcEmail.trim(),
+        phone: hcPhone.trim(),
+        address: hcAddress.trim(),
+        city: hcCity.trim(),
+        postcode: hcPostcode.trim(),
+
+        plan: hcPlan,
+        excessFree:
+          hcPlan === "v3" ? false : hcExcessFree,
+
+        accountHolderName: hcAccountHolderName.trim(),
+        sortCode: hcSortCode.replace(/\D/g, ""),
+        accountNumber: hcAccountNumber.replace(/\D/g, ""),
+        paymentDay: hcPaymentDay,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(
+        data.error || "Unable to create HeatCover+"
+      );
+    }
+
+    console.log("HeatCover+ mandate created:", {
+  customerId: data.customerId,
+  mandateId: data.mandateId,
+  mandateStatus: data.mandateStatus,
+  firstCollectionDate: data.firstCollectionDate,
+});
+
+alert(
+  `Direct Debit mandate created successfully.\n\nMandate status: ${data.mandateStatus}\nFirst planned collection: ${data.firstCollectionDate}`
+);
+
+  } catch (err: any) {
+    console.error("HeatCover+ signup failed:", err);
+
+    setHcSubmitError(
+      err?.message || "Unable to create HeatCover+"
+    );
+  } finally {
+    setHcSubmitting(false);
+  }
+}
+
+async function findJob(showAlerts = true) {
     if (!jobNumber.trim()) {
       if (showAlerts) alert("Enter a ServiceM8 job number");
       return;
@@ -657,6 +728,14 @@ const isCurrentHistoryMonth =
   />
 
   <input
+  type="text"
+  placeholder="Town / City"
+  value={hcCity}
+  onChange={(e) => setHcCity(e.target.value)}
+  className="w-full p-4 rounded-xl bg-black border border-zinc-700"
+/>
+
+  <input
     type="text"
     placeholder="Postcode"
     value={hcPostcode}
@@ -673,6 +752,7 @@ const isCurrentHistoryMonth =
       !hcEmail.trim() ||
       !hcPhone.trim() ||
       !hcAddress.trim() ||
+      !hcCity.trim() ||
       !hcPostcode.trim()
     ) {
       alert("Please complete all customer details");
@@ -867,6 +947,17 @@ const isCurrentHistoryMonth =
         Excess Free included
       </p>
     )}
+  </div>
+)}
+
+{hcSubmitError && (
+  <div className="p-3 rounded-xl bg-red-900/40 border border-red-700">
+    <p className="text-sm font-bold text-red-400">
+      Could not create HeatCover+
+    </p>
+    <p className="text-sm mt-1">
+      {hcSubmitError}
+    </p>
   </div>
 )}
 
@@ -1120,41 +1211,38 @@ const isCurrentHistoryMonth =
     </div>
 
     <div className="p-4 rounded-xl bg-yellow-900/40 border border-yellow-700">
-      <p className="text-sm font-bold text-yellow-400 mb-3">
-        READ TO CUSTOMER
+  <p className="text-sm font-bold text-yellow-400 mb-3">
+    READ TO CUSTOMER
+  </p>
+
+  <div className="space-y-4">
+
+    <p>
+      To set up your HeatCover+ payments by Direct Debit, I just need to
+      ask you a couple of questions first.
+    </p>
+
+    <div className="p-3 rounded-lg bg-black/30">
+      <p className="font-bold">
+        Could you confirm that you hold a UK bank account and that you
+        are the account holder?
       </p>
-
-      <div className="space-y-3">
-        <p>
-          Great, thank you. Your monthly HeatCover+ payment will be
-          collected by Direct Debit through our payment collection
-          partner, GoCardless. GoCardless will appear on your bank
-          statement.
-        </p>
-
-        <p>
-          To set this up, I'm going to ask you for the sort code and
-          account number of the account you'd like the payments to come
-          from.
-        </p>
-
-        <p>
-          By continuing, you're confirming that you're authorised to set
-          up a Direct Debit on this account and that you're happy for us
-          to collect your agreed HeatCover+ monthly payment by Direct
-          Debit through GoCardless.
-        </p>
-
-        <p>
-          You'll receive confirmation of your Direct Debit and advance
-          notice of your payments.
-        </p>
-
-        <p className="font-bold">
-          Are you happy for me to set up the Direct Debit now?
-        </p>
-      </div>
     </div>
+
+    <div className="p-3 rounded-lg bg-black/30">
+      <p className="font-bold">
+        Are you the only person required to authorise debits from this
+        account?
+      </p>
+    </div>
+
+    <p className="text-sm">
+      Both answers must be YES to continue with telephone Direct Debit
+      setup.
+    </p>
+
+  </div>
+</div>
 
     <div className="flex gap-3 pt-2">
       <button
@@ -1170,7 +1258,7 @@ const isCurrentHistoryMonth =
         onClick={() => setHcStep("bankDetails")}
         className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
       >
-        Customer Consents — Continue
+        Eligibility Confirmed — Continue
       </button>
     </div>
 
@@ -1193,6 +1281,20 @@ const isCurrentHistoryMonth =
 
     <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-4">
 
+     <div>
+  <label className="block text-sm font-bold mb-2">
+    Account holder name
+  </label>
+
+  <input
+    type="text"
+    autoComplete="off"
+    placeholder="Name as shown on the bank account"
+    value={hcAccountHolderName}
+    onChange={(e) => setHcAccountHolderName(e.target.value)}
+    className="w-full p-4 rounded-xl bg-black border border-zinc-700"
+  />
+</div>
       <div>
         <label className="block text-sm font-bold mb-2">
           Sort code
@@ -1297,11 +1399,12 @@ const isCurrentHistoryMonth =
       <button
         type="button"
         disabled={
-          hcSortCode.replace(/\D/g, "").length !== 6 ||
-          hcAccountNumber.length !== 8 ||
-          hcPaymentDay === null
-        }
-        onClick={() => setHcStep("review")}
+  !hcAccountHolderName.trim() ||
+  hcSortCode.replace(/\D/g, "").length !== 6 ||
+  hcAccountNumber.length !== 8 ||
+  hcPaymentDay === null
+}
+        onClick={() => setHcStep("ddAuthorisation")}
         className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Review Details
@@ -1310,6 +1413,177 @@ const isCurrentHistoryMonth =
 
   </div>
 )}
+
+{/* DD AUTHORISATION SCREEN STARTS HERE */}
+{hcStep === "ddAuthorisation" && (
+  <div className="mt-6 space-y-4">
+
+    <div>
+      <h3 className="text-lg font-bold">
+        Direct Debit Authorisation
+      </h3>
+
+      <p className="text-sm text-zinc-400 mt-1">
+        Read the details back to the customer and obtain their authorisation.
+      </p>
+    </div>
+
+    {/* DETAILS TO CONFIRM */}
+    <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-3">
+
+      <p className="text-sm font-bold text-pink-500">
+        CONFIRM WITH CUSTOMER
+      </p>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Account holder</span>
+        <span className="font-bold text-right">
+          {hcAccountHolderName}
+        </span>
+      </div>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Sort code</span>
+        <span className="font-bold">
+          {hcSortCode}
+        </span>
+      </div>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Account number</span>
+        <span className="font-bold">
+          {hcAccountNumber}
+        </span>
+      </div>
+
+      <div className="flex justify-between gap-4">
+        <span className="text-zinc-400">Email</span>
+        <span className="font-bold text-right">
+          {hcEmail}
+        </span>
+      </div>
+
+    </div>
+
+    {/* READ BACK */}
+    <div className="p-4 rounded-xl bg-yellow-900/40 border border-yellow-700">
+
+      <p className="text-sm font-bold text-yellow-400 mb-3">
+        READ TO CUSTOMER
+      </p>
+
+      <div className="space-y-3">
+
+        <p>
+          Thank you. I'll just confirm the details you've given me.
+        </p>
+
+        <p>
+          The account holder name is{" "}
+          <strong>{hcAccountHolderName}</strong>, the sort code is{" "}
+          <strong>{hcSortCode}</strong>, and the account number is{" "}
+          <strong>{hcAccountNumber}</strong>.
+        </p>
+
+        <p className="font-bold">
+          Can you confirm those details are correct?
+        </p>
+
+      </div>
+    </div>
+
+    {/* DIRECT DEBIT AUTHORISATION */}
+<div className="p-4 rounded-xl bg-yellow-900/40 border border-yellow-700">
+
+  <p className="text-sm font-bold text-yellow-400 mb-3">
+    READ TO CUSTOMER
+  </p>
+
+  <div className="space-y-3">
+
+    <p>
+      Brilliant. The company name that will appear on your bank statement
+      against the Direct Debit will be GoCardless.
+    </p>
+
+    <p>
+      You will receive confirmation of your mandate setup to your specified
+      email address.
+    </p>
+
+    <p>
+      If there are any changes to the date, amount or frequency of your
+      Direct Debit payment, you will be given 3 working days&apos; notice
+      before your account is debited.
+    </p>
+
+    <div className="p-3 rounded-lg bg-black/30">
+      <p className="font-bold">
+        It&apos;s important to note that all Direct Debits are protected by
+        a guarantee. I can read that to you now, or you can review it in
+        the confirmation email. Which would you prefer?
+      </p>
+    </div>
+
+  </div>
+</div>
+
+    <div className="flex gap-3 pt-2">
+
+      <button
+        type="button"
+        onClick={() => setHcStep("bankDetails")}
+        className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
+      >
+        Back
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setHcStep("review")}
+        className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
+      >
+        Direct Debit Authorisation Complete — Continue
+      </button>
+
+    </div>
+
+  </div>
+)}
+
+{/* DIRECT DEBIT GUARANTEE - READ IF CUSTOMER CHOOSES NOW */}
+<div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700">
+
+  <p className="text-sm font-bold text-pink-500 mb-2">
+    IF CUSTOMER CHOOSES &quot;READ IT NOW&quot;
+  </p>
+
+  <div className="space-y-3 text-sm text-zinc-200">
+
+    <p>
+      In the future, if there is a change to the date, amount or frequency
+      of your Direct Debit, you will be given 3 working days&apos; notice
+      before your account is debited.
+    </p>
+
+    <p>
+      In the event of an error, you are entitled to an immediate refund
+      from your bank or building society.
+    </p>
+
+    <p>
+      You have the right to cancel at any time, and the Direct Debit
+      Guarantee applies through banks and building societies that accept
+      Direct Debit instructions.
+    </p>
+
+    <p>
+      A copy of the safeguards under the Direct Debit Guarantee will also
+      be provided with the confirmation email.
+    </p>
+
+  </div>
+</div>
 
 {/* REVIEW SCREEN STARTS HERE */}
 {hcStep === "review" && (
@@ -1430,6 +1704,13 @@ const isCurrentHistoryMonth =
       </p>
 
       <div className="flex justify-between gap-4">
+  <span className="text-zinc-400">Account holder</span>
+  <span className="font-bold text-right">
+    {hcAccountHolderName}
+  </span>
+</div>
+
+      <div className="flex justify-between gap-4">
         <span className="text-zinc-400">Sort code</span>
         <span className="font-bold">
           ••-••-{hcSortCode.replace(/\D/g, "").slice(-2)}
@@ -1482,11 +1763,15 @@ const isCurrentHistoryMonth =
       </button>
 
       <button
-        type="button"
-        className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
-      >
-        Confirm & Create HeatCover+
-      </button>
+  type="button"
+  onClick={submitHeatCoverSignup}
+  disabled={hcSubmitting}
+  className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  {hcSubmitting
+    ? "Creating HeatCover+..."
+    : "Confirm & Create HeatCover+"}
+</button>
     </div>
 
   </div>
@@ -1701,7 +1986,10 @@ const isCurrentHistoryMonth =
 
       <button
   type="button"
-  onClick={() => setShowHeatCoverSignup(true)}
+  onClick={() => {
+  setHcSignupId(crypto.randomUUID());
+  setShowHeatCoverSignup(true);
+}}
   className="w-full p-4 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold"
 >
   + Add HeatCover+ Customer
