@@ -212,7 +212,7 @@ const firstCollectionDate =
 // CREATE CUSTOMER ONLY
 // -----------------------------
 
-const accessToken = process.env.GOCARDLESS_ACCESS_TOKEN;
+const accessToken = process.env.HEATCOVER_GOCARDLESS_ACCESS_TOKEN;
 
 if (!accessToken) {
   return NextResponse.json(
