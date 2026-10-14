@@ -110,6 +110,7 @@ customerPhone =
 
     let payments: any[] = [];
     let paidAmount = 0;
+    let paymentsVerified = false;
 
     try {
       const paymentFilter = encodeURIComponent(`job_uuid eq '${job.uuid}'`);
@@ -119,10 +120,12 @@ customerPhone =
       );
 
       if (Array.isArray(payments)) {
-        paidAmount = payments.reduce((total, payment) => {
-          return total + Number(payment.amount || 0);
-        }, 0);
-      }
+  paidAmount = payments.reduce((total, payment) => {
+    return total + Number(payment.amount || 0);
+  }, 0);
+
+  paymentsVerified = true;
+}
     } catch (err) {
       console.error("Job payment lookup failed:", err);
     }
@@ -142,6 +145,7 @@ customerPhone =
       totalAmount,
       paidAmount,
       outstandingAmount,
+      paymentsVerified,
       isFullyPaid: totalAmount > 0 && outstandingAmount <= 0,
       paymentReceivedFlag: Number(job.payment_received || 0),
       payments,
