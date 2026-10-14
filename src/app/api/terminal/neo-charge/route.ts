@@ -5,6 +5,28 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: Request) {
   try {
+    const username = "gamma";
+    const password = process.env.APP_PASSWORD;
+
+    if (!username || !password) {
+      return NextResponse.json(
+        { success: false, error: "Authentication not configured" },
+        { status: 503 }
+      );
+    }
+
+    const auth = req.headers.get("authorization") || "";
+    const expected =
+      "Basic " +
+      Buffer.from(`${username}:${password}`).toString("base64");
+
+    if (auth !== expected) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
 
     const {
