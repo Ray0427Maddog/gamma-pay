@@ -52,7 +52,8 @@ function HomeContent() {
   "ddConsent" |
   "bankDetails" |
   "ddAuthorisation" |
-  "review"
+  "review" |
+  "waiting"
 >("plan");
 
   const [hcPlan, setHcPlan] = useState<
@@ -75,6 +76,38 @@ const [hcAccountHolderName, setHcAccountHolderName] = useState("");
 
 const [hcSubmitting, setHcSubmitting] = useState(false);
 const [hcSubmitError, setHcSubmitError] = useState("");
+
+// GoCardless hosted sign-up link
+const [hcBillingRequestId, setHcBillingRequestId] = useState("");
+const [hcLinkUrl, setHcLinkUrl] = useState("");
+const [hcSmsSentTo, setHcSmsSentTo] = useState<string | null>(null);
+const [hcSmsError, setHcSmsError] = useState<string | null>(null);
+const [hcLinkStatus, setHcLinkStatus] = useState("pending");
+
+// While waiting, check every 5 s whether the customer has finished.
+useEffect(() => {
+  if (hcStep !== "waiting" || !hcBillingRequestId) return;
+  if (hcLinkStatus === "fulfilled" || hcLinkStatus === "cancelled") return;
+
+  const check = async () => {
+    try {
+      const res = await fetch(
+        `/api/gocardless/heatcover-link/status?id=${encodeURIComponent(
+          hcBillingRequestId
+        )}`,
+        { cache: "no-store" }
+      );
+      const data = await res.json();
+      if (data.success && data.status) setHcLinkStatus(data.status);
+    } catch {
+      // try again on the next tick
+    }
+  };
+
+  check();
+  const timer = setInterval(check, 5000);
+  return () => clearInterval(timer);
+}, [hcStep, hcBillingRequestId, hcLinkStatus]);
 
   const [machineStatus, setMachineStatus] = useState<
   "idle" | "waiting" | "success"
@@ -156,7 +189,7 @@ async function submitHeatCoverSignup() {
   setHcSubmitError("");
 
   try {
-    const res = await fetch("/api/gocardless/heatcover-signup", {
+    const res = await fetch("/api/gocardless/heatcover-link", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -176,10 +209,8 @@ async function submitHeatCoverSignup() {
         excessFree:
           hcPlan === "v3" ? false : hcExcessFree,
 
-        accountHolderName: hcAccountHolderName.trim(),
-        sortCode: hcSortCode.replace(/\D/g, ""),
-        accountNumber: hcAccountNumber.replace(/\D/g, ""),
         paymentDay: hcPaymentDay,
+        sendSms: true,
       }),
     });
 
@@ -191,16 +222,12 @@ async function submitHeatCoverSignup() {
       );
     }
 
-    console.log("HeatCover+ mandate created:", {
-  customerId: data.customerId,
-  mandateId: data.mandateId,
-  mandateStatus: data.mandateStatus,
-  firstCollectionDate: data.firstCollectionDate,
-});
-
-alert(
-  `Direct Debit mandate created successfully.\n\nMandate status: ${data.mandateStatus}\nFirst planned collection: ${data.firstCollectionDate}`
-);
+    setHcBillingRequestId(data.billingRequestId);
+    setHcLinkUrl(data.authorisationUrl);
+    setHcSmsSentTo(data.smsSentTo || null);
+    setHcSmsError(data.smsError || null);
+    setHcLinkStatus("pending");
+    setHcStep("waiting");
 
   } catch (err: any) {
     console.error("HeatCover+ signup failed:", err);
@@ -1196,7 +1223,7 @@ const isCurrentHistoryMonth =
 
       <button
         type="button"
-        onClick={() => setHcStep("ddConsent")}
+        onClick={() => setHcStep("bankDetails")}
         className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold"
       >
         Customer Agrees — Continue
@@ -1281,75 +1308,19 @@ const isCurrentHistoryMonth =
 
     <div>
       <h3 className="text-lg font-bold">
-        Direct Debit Details
+        Payment Date
       </h3>
 
       <p className="text-sm text-zinc-400 mt-1">
-        Enter the customer's bank details and preferred monthly payment date.
+        Choose the customer's preferred monthly payment date.
       </p>
     </div>
 
-    <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-4">
-
-     <div>
-  <label className="block text-sm font-bold mb-2">
-    Account holder name
-  </label>
-
-  <input
-    type="text"
-    autoComplete="off"
-    placeholder="Name as shown on the bank account"
-    value={hcAccountHolderName}
-    onChange={(e) => setHcAccountHolderName(e.target.value)}
-    className="w-full p-4 rounded-xl bg-black border border-zinc-700"
-  />
-</div>
-      <div>
-        <label className="block text-sm font-bold mb-2">
-          Sort code
-        </label>
-
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="00-00-00"
-          maxLength={8}
-          value={hcSortCode}
-          onChange={(e) => {
-            const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
-
-            const formatted = digits
-              .replace(/^(\d{2})(\d)/, "$1-$2")
-              .replace(/^(\d{2})-(\d{2})(\d)/, "$1-$2-$3");
-
-            setHcSortCode(formatted);
-          }}
-          className="w-full p-4 rounded-xl bg-black border border-zinc-700 text-lg tracking-wider"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-bold mb-2">
-          Account number
-        </label>
-
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="12345678"
-          maxLength={8}
-          value={hcAccountNumber}
-          onChange={(e) => {
-            const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
-            setHcAccountNumber(digits);
-          }}
-          className="w-full p-4 rounded-xl bg-black border border-zinc-700 text-lg tracking-wider"
-        />
-      </div>
-
+    <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700">
+      <p className="text-sm">
+        The customer enters their own bank details on GoCardless&apos;s secure
+        page. We text them the link on the next screen.
+      </p>
     </div>
 
     <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-3">
@@ -1400,7 +1371,7 @@ const isCurrentHistoryMonth =
     <div className="flex gap-3 pt-2">
       <button
         type="button"
-        onClick={() => setHcStep("ddConsent")}
+        onClick={() => setHcStep("terms")}
         className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
       >
         Back
@@ -1408,13 +1379,8 @@ const isCurrentHistoryMonth =
 
       <button
         type="button"
-        disabled={
-  !hcAccountHolderName.trim() ||
-  hcSortCode.replace(/\D/g, "").length !== 6 ||
-  hcAccountNumber.length !== 8 ||
-  hcPaymentDay === null
-}
-        onClick={() => setHcStep("ddAuthorisation")}
+        disabled={hcPaymentDay === null}
+        onClick={() => setHcStep("review")}
         className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Review Details
@@ -1594,6 +1560,172 @@ const isCurrentHistoryMonth =
   </div>
 )}
 
+{/* LINK SENT / WAITING FOR CUSTOMER SCREEN STARTS HERE */}
+{hcStep === "waiting" && (
+  <div className="mt-6 space-y-4">
+
+    <div>
+      <h3 className="text-lg font-bold">
+        {hcLinkStatus === "fulfilled"
+          ? "Direct Debit Set Up"
+          : "Waiting for Customer"}
+      </h3>
+
+      <p className="text-sm text-zinc-400 mt-1">
+        {hcLinkStatus === "fulfilled"
+          ? "The customer has completed the GoCardless page."
+          : "Keep the customer on the phone while they open the link. This screen updates by itself."}
+      </p>
+    </div>
+
+    {hcSmsSentTo && (
+      <div className="p-3 rounded-xl bg-zinc-800 border border-zinc-700">
+        <p className="text-sm">
+          Link texted to <span className="font-bold">+{hcSmsSentTo}</span>
+        </p>
+      </div>
+    )}
+
+    {hcSmsError && (
+      <div className="p-3 rounded-xl bg-red-900/40 border border-red-700">
+        <p className="text-sm font-bold text-red-400">
+          Text not sent
+        </p>
+        <p className="text-sm mt-1">
+          {hcSmsError}. Copy the link below and send it another way.
+        </p>
+      </div>
+    )}
+
+    {hcLinkStatus !== "fulfilled" && (
+      <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700 space-y-3">
+        <p className="text-sm font-bold text-pink-500">
+          STATUS
+        </p>
+        <p className="font-bold">
+          {hcLinkStatus === "cancelled"
+            ? "❌ Link cancelled or expired. Go back and send a new one."
+            : hcLinkStatus === "ready_to_fulfil" || hcLinkStatus === "fulfilling"
+            ? "⏳ Customer is finishing…"
+            : "⏳ Waiting for the customer to complete the page…"}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard?.writeText(hcLinkUrl);
+            alert("Link copied");
+          }}
+          className="w-full p-3 rounded-xl bg-zinc-700 font-bold text-sm"
+        >
+          Copy link
+        </button>
+      </div>
+    )}
+
+    {hcLinkStatus === "fulfilled" && (
+      <div className="p-4 rounded-xl bg-yellow-900/40 border border-yellow-700">
+        <p className="text-sm font-bold text-yellow-400 mb-3">
+          READ TO CUSTOMER
+        </p>
+
+        <div className="space-y-3">
+          <p>
+            Thank you {hcFirstName}, that's all gone through. Your Direct
+            Debit is set up with GoCardless.
+          </p>
+
+          <p>
+            Your HeatCover+{" "}
+            {hcPlan.toUpperCase()}
+            {hcExcessFree === true ? " Excess Free" : ""} plan is £
+            {(
+              (hcPlan === "v1"
+                ? 27
+                : hcPlan === "v2"
+                ? 18
+                : hcPlan === "v3"
+                ? 12
+                : 38) + (hcExcessFree === true ? 11 : 0)
+            ).toFixed(2)}{" "}
+            a month, taken on the {hcPaymentDay}
+            {hcPaymentDay === 1 || hcPaymentDay === 21
+              ? "st"
+              : hcPaymentDay === 2 || hcPaymentDay === 22
+              ? "nd"
+              : hcPaymentDay === 3 || hcPaymentDay === 23
+              ? "rd"
+              : "th"}{" "}
+            of each month. You'll get an email from GoCardless confirming
+            the Direct Debit and your first payment date.
+          </p>
+
+          {hcPlan !== "v3" && (
+            <p>
+              Your plan starts today, and breakdown cover begins after 30
+              days.
+            </p>
+          )}
+
+          <p>
+            We'll email your HeatCover+ agreement to {hcEmail}. Is there
+            anything else I can help you with today?
+          </p>
+        </div>
+      </div>
+    )}
+
+    <div className="flex gap-3 pt-2">
+      {hcLinkStatus !== "fulfilled" && (
+        <button
+          type="button"
+          onClick={() => setHcStep("review")}
+          className="w-1/3 p-4 rounded-xl bg-zinc-700 font-bold"
+        >
+          Back
+        </button>
+      )}
+
+      <button
+        type="button"
+        onClick={() => {
+          if (
+            hcLinkStatus !== "fulfilled" &&
+            !confirm(
+              "The customer hasn't finished yet. Close anyway? The link they were sent will still work."
+            )
+          ) {
+            return;
+          }
+          setShowHeatCoverSignup(false);
+          setHcStep("plan");
+          setHcPlan("");
+          setHcExcessFree(null);
+          setHcFirstName("");
+          setHcLastName("");
+          setHcEmail("");
+          setHcPhone("");
+          setHcAddress("");
+          setHcCity("");
+          setHcPostcode("");
+          setHcPaymentDay(null);
+          setHcBillingRequestId("");
+          setHcLinkUrl("");
+          setHcSmsSentTo(null);
+          setHcSmsError(null);
+          setHcLinkStatus("pending");
+        }}
+        className={`${
+          hcLinkStatus === "fulfilled" ? "w-full" : "w-2/3"
+        } p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold`}
+      >
+        {hcLinkStatus === "fulfilled" ? "Finish" : "Close"}
+      </button>
+    </div>
+
+  </div>
+)}
+
 {/* REVIEW SCREEN STARTS HERE */}
 {hcStep === "review" && (
   <div className="mt-6 space-y-4">
@@ -1713,27 +1845,6 @@ const isCurrentHistoryMonth =
       </p>
 
       <div className="flex justify-between gap-4">
-  <span className="text-zinc-400">Account holder</span>
-  <span className="font-bold text-right">
-    {hcAccountHolderName}
-  </span>
-</div>
-
-      <div className="flex justify-between gap-4">
-        <span className="text-zinc-400">Sort code</span>
-        <span className="font-bold">
-          ••-••-{hcSortCode.replace(/\D/g, "").slice(-2)}
-        </span>
-      </div>
-
-      <div className="flex justify-between gap-4">
-        <span className="text-zinc-400">Account</span>
-        <span className="font-bold">
-          ••••{hcAccountNumber.slice(-4)}
-        </span>
-      </div>
-
-      <div className="flex justify-between gap-4">
         <span className="text-zinc-400">Payment date</span>
         <span className="font-bold">
           {hcPaymentDay}
@@ -1757,10 +1868,20 @@ const isCurrentHistoryMonth =
         FINAL CHECK
       </p>
       <p className="text-sm mt-1">
-        Confirm the customer details, selected plan and payment details
-        are correct before creating HeatCover+.
+        Confirm the customer details, plan and payment date are correct.
+        The customer will get a text with a secure GoCardless link to
+        enter their bank details.
       </p>
     </div>
+
+    {hcSubmitError && (
+      <div className="p-3 rounded-xl bg-red-900/40 border border-red-700">
+        <p className="text-sm font-bold text-red-400">
+          Could not send link
+        </p>
+        <p className="text-sm mt-1">{hcSubmitError}</p>
+      </div>
+    )}
 
     <div className="flex gap-3 pt-2">
       <button
@@ -1778,8 +1899,8 @@ const isCurrentHistoryMonth =
   className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
 >
   {hcSubmitting
-    ? "Creating HeatCover+..."
-    : "Confirm & Create HeatCover+"}
+    ? "Sending link..."
+    : "Send Direct Debit Link by Text"}
 </button>
     </div>
 

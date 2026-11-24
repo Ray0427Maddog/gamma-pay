@@ -32,5 +32,7 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/webhook).*)"],
+  // Webhooks skip the staff password: Stripe and GoCardless can't type it.
+  // Each webhook route checks its own signature instead.
+  matcher: ["/((?!api/webhook|api/gocardless/webhook).*)"],
 };

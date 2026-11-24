@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import {
+  GC_BASE,
+  gcHeaders,
+  heatCoverMonthlyPence,
+  unpackTerms,
+} from "@/lib/heatcover";
 
 export async function POST(req: Request) {
   try {
@@ -93,173 +99,142 @@ for (const event of events) {
   const resourceType = event.resource_type;
   const action = event.action;
 
-  // HeatCover+ subscriptions are only created when
-  // a GoCardless mandate becomes active.
+  // HeatCover+ subscriptions are created when the customer
+  // finishes the GoCardless hosted sign-up page
+  // (billing request "fulfilled"). The plan details travel
+  // in the billing request's metadata.
   if (
-    resourceType !== "mandates" ||
-    action !== "active"
+    resourceType !== "billing_requests" ||
+    action !== "fulfilled"
   ) {
     continue;
   }
 
-  const mandateId = event.links?.mandate;
+  const billingRequestId = event.links?.billing_request;
 
-  if (!mandateId) {
+  if (!billingRequestId) {
     console.error(
-      "GoCardless mandate active event missing mandate ID"
+      "GoCardless fulfilled event missing billing request ID"
     );
     continue;
   }
 
   console.log(
-    `GoCardless active mandate received: ${mandateId}`
+    `GoCardless billing request fulfilled: ${billingRequestId}`
   );
+
   const accessToken =
-  process.env.GOCARDLESS_ACCESS_TOKEN;
+    process.env.HEATCOVER_GOCARDLESS_ACCESS_TOKEN;
 
-if (!accessToken) {
-  throw new Error(
-    "Missing GOCARDLESS_ACCESS_TOKEN"
-  );
-}
-
-const mandateRes = await fetch(
-  `https://api.gocardless.com/mandates/${encodeURIComponent(
-    mandateId
-  )}`,
-  {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "GoCardless-Version": "2015-07-06",
-      Accept: "application/json",
-    },
+  if (!accessToken) {
+    throw new Error(
+      "Missing HEATCOVER_GOCARDLESS_ACCESS_TOKEN"
+    );
   }
-);
 
-if (!mandateRes.ok) {
-  console.error(
-    "GoCardless webhook: failed to retrieve mandate",
-    {
-      mandateId,
-      status: mandateRes.status,
-    }
+  const brRes = await fetch(
+    `${GC_BASE}/billing_requests/${encodeURIComponent(
+      billingRequestId
+    )}`,
+    { method: "GET", headers: gcHeaders(accessToken) }
   );
 
-  throw new Error(
-    `Failed to retrieve GoCardless mandate ${mandateId}`
-  );
-}
-
-const mandateData = await mandateRes.json();
-const mandate = mandateData.mandates;
-
-if (!mandate) {
-  throw new Error(
-    `GoCardless mandate ${mandateId} missing from response`
-  );
-}
-
-const metadata = mandate.metadata || {};
-
-// Ignore mandates that were not created by our
-// HeatCover+ signup flow.
-if (!metadata.heatcover_signup_id) {
-  console.log(
-    `GoCardless mandate ${mandateId} is not a HeatCover+ signup mandate - ignored`
-  );
-  continue;
-}
-
-console.log(
-  "HeatCover+ active mandate verified:",
-  {
-    mandateId,
-    signupId: metadata.heatcover_signup_id,
-    plan: metadata.heatcover_plan,
+  if (!brRes.ok) {
+    throw new Error(
+      `Failed to retrieve GoCardless billing request ${billingRequestId}`
+    );
   }
-);
 
-const signupId = metadata.heatcover_signup_id;
-const plan = metadata.heatcover_plan;
-const excessFree = metadata.excess_free;
+  const brData = await brRes.json();
+  const billingRequest = brData.billing_requests;
+  const metadata = billingRequest?.metadata || {};
 
-const storedMonthlyAmountPence = Number(
-  metadata.monthly_amount_pence
-);
+  // Ignore billing requests not created by HeatCover+ sign-up.
+  if (!metadata.heatcover_signup_id) {
+    console.log(
+      `Billing request ${billingRequestId} is not a HeatCover+ signup - ignored`
+    );
+    continue;
+  }
 
-const paymentDay = Number(
-  metadata.payment_day
-);
+  const mandateId =
+    billingRequest?.links?.mandate_request_mandate;
 
-const firstCollectionDate =
-  metadata.first_collection_date;
+  if (!mandateId) {
+    throw new Error(
+      `HeatCover+ billing request ${billingRequestId} has no mandate`
+    );
+  }
 
-const validPlans = ["v1", "v2", "v3", "v4"];
-
-if (
-  typeof signupId !== "string" ||
-  !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    signupId
-  )
-) {
-  throw new Error(
-    `HeatCover+ mandate ${mandateId} has invalid signup ID`
+  const mandateRes = await fetch(
+    `${GC_BASE}/mandates/${encodeURIComponent(mandateId)}`,
+    { method: "GET", headers: gcHeaders(accessToken) }
   );
-}
 
-if (!validPlans.includes(plan)) {
-  throw new Error(
-    `HeatCover+ mandate ${mandateId} has invalid plan`
+  if (!mandateRes.ok) {
+    throw new Error(
+      `Failed to retrieve GoCardless mandate ${mandateId}`
+    );
+  }
+
+  const mandate = (await mandateRes.json()).mandates;
+
+  if (!mandate) {
+    throw new Error(
+      `GoCardless mandate ${mandateId} missing from response`
+    );
+  }
+
+  const signupId = metadata.heatcover_signup_id;
+  const plan = metadata.heatcover_plan;
+  const terms = unpackTerms(metadata.heatcover_terms);
+  const paymentDay = terms.paymentDay;
+  const firstCollectionDate = terms.firstCollectionDate;
+
+  if (
+    typeof signupId !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      signupId
+    )
+  ) {
+    throw new Error(
+      `HeatCover+ request ${billingRequestId} has invalid signup ID`
+    );
+  }
+
+  if (!["v1", "v2", "v3", "v4"].includes(plan)) {
+    throw new Error(
+      `HeatCover+ request ${billingRequestId} has invalid plan`
+    );
+  }
+
+  // Price is recalculated here, never trusted from metadata alone.
+  const monthlyAmountPence = heatCoverMonthlyPence(
+    plan,
+    terms.excessFree
   );
-}
 
-let monthlyAmountPence: number;
+  if (terms.amountPence !== monthlyAmountPence) {
+    throw new Error(
+      `HeatCover+ request ${billingRequestId} has inconsistent pricing metadata`
+    );
+  }
 
-if (plan === "v1") {
-  monthlyAmountPence =
-    excessFree === "yes" ? 3800 : 2700;
-} else if (plan === "v2") {
-  monthlyAmountPence =
-    excessFree === "yes" ? 2900 : 1800;
-} else if (plan === "v3") {
-  monthlyAmountPence = 1200;
-} else if (plan === "v4") {
-  monthlyAmountPence =
-    excessFree === "yes" ? 4900 : 3800;
-} else {
-  throw new Error(
-    `HeatCover+ mandate ${mandateId} has invalid plan`
-  );
-}
+  if (
+    !Number.isInteger(paymentDay) ||
+    paymentDay < 1 ||
+    paymentDay > 28
+  ) {
+    throw new Error(
+      `HeatCover+ request ${billingRequestId} has invalid payment day`
+    );
+  }
 
-if (
-  !Number.isInteger(storedMonthlyAmountPence) ||
-  storedMonthlyAmountPence !== monthlyAmountPence
-) {
-  throw new Error(
-    `HeatCover+ mandate ${mandateId} has inconsistent pricing metadata`
-  );
-}
-
-if (
-  !Number.isInteger(paymentDay) ||
-  paymentDay < 1 ||
-  paymentDay > 28
-) {
-  throw new Error(
-    `HeatCover+ mandate ${mandateId} has invalid payment day`
-  );
-}
-
-if (
-  typeof firstCollectionDate !== "string" ||
-  !/^\d{4}-\d{2}-\d{2}$/.test(firstCollectionDate)
-) {
-  throw new Error(
-    `HeatCover+ mandate ${mandateId} has invalid first collection date`
-  );
-}
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(firstCollectionDate)) {
+    throw new Error(
+      `HeatCover+ request ${billingRequestId} has invalid first collection date`
+    );
+  }
 
 console.log(
   "HeatCover+ subscription data validated:",
@@ -273,20 +248,31 @@ console.log(
   }
 );
 
-const today = new Date();
+// First collection = the customer's payment day, on or after
+// the earliest date GoCardless can charge this new mandate.
+const todayStr = new Date().toISOString().slice(0, 10);
+const earliest = [
+  todayStr,
+  mandate.next_possible_charge_date || todayStr,
+].sort()[1];
 
-const yyyy = today.getUTCFullYear();
-const mm = today.getUTCMonth();
+const earliestDate = new Date(`${earliest}T00:00:00Z`);
 
 let nextCollectionDate = new Date(
-  Date.UTC(yyyy, mm, paymentDay)
+  Date.UTC(
+    earliestDate.getUTCFullYear(),
+    earliestDate.getUTCMonth(),
+    paymentDay
+  )
 );
 
-// If this month's requested day has already passed,
-// move the first collection to next month.
-if (nextCollectionDate <= today) {
+if (nextCollectionDate < earliestDate) {
   nextCollectionDate = new Date(
-    Date.UTC(yyyy, mm + 1, paymentDay)
+    Date.UTC(
+      earliestDate.getUTCFullYear(),
+      earliestDate.getUTCMonth() + 1,
+      paymentDay
+    )
   );
 }
 
@@ -327,7 +313,7 @@ const subscriptionPayload = {
 };
 
 const subscriptionRes = await fetch(
-  "https://api.gocardless.com/subscriptions",
+  `${GC_BASE}/subscriptions`,
   {
     method: "POST",
     headers: {
@@ -349,6 +335,19 @@ try {
   subscriptionData = JSON.parse(subscriptionText);
 } catch {
   subscriptionData = {};
+}
+
+const conflictingSubscriptionId =
+  subscriptionRes.status === 409
+    ? subscriptionData?.error?.errors?.[0]?.links?.conflicting_resource_id
+    : null;
+
+if (conflictingSubscriptionId) {
+  console.log(
+    "HeatCover+ subscription already exists (webhook retry):",
+    { signupId, subscriptionId: conflictingSubscriptionId }
+  );
+  continue;
 }
 
 if (!subscriptionRes.ok) {
@@ -384,6 +383,66 @@ console.log(
     plan,
   }
 );
+
+const customerId = mandate.links?.customer;
+
+if (!customerId) {
+  throw new Error(
+    `HeatCover+ mandate ${mandateId} has no linked customer`
+  );
+}
+
+console.log("HeatCover+ linked customer found:", {
+  signupId,
+});
+
+const customerRes = await fetch(
+  `${GC_BASE}/customers/${encodeURIComponent(customerId)}`,
+  {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "GoCardless-Version": "2015-07-06",
+      Accept: "application/json",
+    },
+  }
+);
+
+if (!customerRes.ok) {
+  throw new Error(
+    `Failed to retrieve HeatCover+ customer for signup ${signupId}`
+  );
+}
+
+const customerData = await customerRes.json();
+const customer = customerData.customers;
+
+if (!customer) {
+  throw new Error(
+    `HeatCover+ customer missing from response for signup ${signupId}`
+  );
+}
+
+const firstName = customer.given_name;
+const lastName = customer.family_name;
+const email = customer.email;
+const phone = customer.phone_number || "";
+const address = customer.address_line1;
+const city = customer.city;
+const postcode = customer.postal_code;
+
+if (
+  !firstName ||
+  !lastName ||
+  !email ||
+  !address ||
+  !city ||
+  !postcode
+) {
+  throw new Error(
+    `HeatCover+ customer details incomplete for signup ${signupId}`
+  );
+}
 
 }
 
