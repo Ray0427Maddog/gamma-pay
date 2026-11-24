@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { POST as generateContract } from "../heatcover-signup/contract/route";
 import crypto from "crypto";
 import {
   GC_BASE,
@@ -384,6 +385,10 @@ console.log(
   }
 );
 
+// The Direct Debit + subscription are already done at this point.
+// Anything below (customer lookup, agreement email) must never make
+// GoCardless retry the webhook, so failures are logged, not thrown.
+try {
 const customerId = mandate.links?.customer;
 
 if (!customerId) {
@@ -444,6 +449,46 @@ if (
   );
 }
 
+// -----------------------------
+// EMAIL THE HEATCOVER+ AGREEMENT
+// (contract PDF -> Zapier -> customer email)
+// -----------------------------
+const contractRes = await generateContract(
+  new NextRequest("https://internal/heatcover-contract", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      signupId,
+      firstName,
+      lastName,
+      email,
+      phone,
+      address,
+      city,
+      postcode,
+      paymentDay,
+      plan,
+      excessFree: plan !== "v3" && terms.excessFree,
+    }),
+  })
+);
+
+if (!contractRes.ok) {
+  throw new Error(
+    `HeatCover+ agreement could not be generated (status ${contractRes.status})`
+  );
+}
+
+console.log("HeatCover+ agreement generated and handed to Zapier:", {
+  signupId,
+});
+
+} catch (agreementErr: any) {
+  console.error(
+    "HeatCover+ agreement email FAILED - send it manually:",
+    { signupId, error: agreementErr?.message || agreementErr }
+  );
+}
 }
 
 return new NextResponse(null, {
