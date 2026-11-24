@@ -144,6 +144,18 @@ export async function POST(req: Request) {
           mandate_request: {
             scheme: "bacs",
             currency: "GBP",
+            // Shown to the customer on the GoCardless page
+            description: `HeatCover+ ${String(plan).toUpperCase()}${
+              isExcessFree ? " Excess Free" : ""
+            } - £${(monthlyAmountPence / 100).toFixed(2)} per month, taken on the ${paymentDay}${
+              [1, 21].includes(paymentDay)
+                ? "st"
+                : [2, 22].includes(paymentDay)
+                ? "nd"
+                : [3, 23].includes(paymentDay)
+                ? "rd"
+                : "th"
+            }`,
             metadata,
           },
           metadata,
