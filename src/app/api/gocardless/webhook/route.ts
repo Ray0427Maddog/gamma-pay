@@ -5,6 +5,7 @@ import {
   GC_BASE,
   gcHeaders,
   heatCoverMonthlyPence,
+  notifyPortalNeoU,
   unpackTerms,
 } from "@/lib/heatcover";
 
@@ -495,6 +496,21 @@ const phone = customer.phone_number || "";
 const address = customer.address_line1;
 const city = customer.city;
 const postcode = customer.postal_code;
+
+// Neo U chosen? Put it on the HeatCover portal's Neo U list (never fatal).
+if (plan === "v4" && terms.neoU) {
+  await notifyPortalNeoU({
+    ref: signupId,
+    source: "signup",
+    gcCustomerId: customerId,
+    firstName,
+    lastName: lastName || "",
+    postcode: postcode || "",
+    address: address || "",
+    installPence: terms.neoUInstallPence,
+    installDate: effectiveFirstCollectionDate,
+  });
+}
 
 if (
   !firstName ||

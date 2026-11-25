@@ -4,6 +4,7 @@ import {
   gcHeaders,
   getNeoUInstallPrice,
   NEO_U_MONTHLY_PENCE,
+  notifyPortalNeoU,
 } from "@/lib/heatcover";
 import { POST as generateContract } from "../../../gocardless/heatcover-signup/contract/route";
 
@@ -174,6 +175,19 @@ export async function POST(req: Request) {
       },
       `neou-${addId}-monthly`
     );
+
+    // ---- put it on the HeatCover portal's Neo U list (never fatal) ----
+    await notifyPortalNeoU({
+      ref: addId,
+      source: "addon",
+      gcCustomerId: customerId,
+      firstName: customer.given_name || "",
+      lastName: customer.family_name || "",
+      postcode: customer.postal_code || "",
+      address: customer.address_line1 || "",
+      installPence,
+      installDate: installChargeDate,
+    });
 
     // ---- 3. email the Neo U Equipment Agreement (never fatal) ----
     let agreementSent = false;

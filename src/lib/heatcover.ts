@@ -147,3 +147,55 @@ export async function getNeoUInstallPrice() {
     onSale: Boolean(p?.on_sale) && regularPence > pricePence,
   };
 }
+
+// Tell the HeatCover portal (WordPress plugin on gammaheating.co.uk) about a
+// new Neo U sign-up so it appears in HeatCover -> Neo U as "Awaiting install".
+// Needs HEATCOVER_PORTAL_URL + HEATCOVER_PORTAL_KEY (copy both from
+// HeatCover -> Settings & test on the website). NEVER throws: a failure here
+// must not break a sign-up. The plugin's daily GoCardless check is the backup.
+export async function notifyPortalNeoU(d: {
+  ref: string;
+  source: "signup" | "addon";
+  gcCustomerId?: string;
+  firstName?: string;
+  lastName: string;
+  postcode: string;
+  address?: string;
+  installPence?: number;
+  installDate?: string;
+}) {
+  const url = process.env.HEATCOVER_PORTAL_URL;
+  const key = process.env.HEATCOVER_PORTAL_KEY;
+  if (!url || !key) {
+    console.warn("Neo U not sent to HeatCover portal: HEATCOVER_PORTAL_URL / KEY not set", { ref: d.ref });
+    return false;
+  }
+  try {
+    const res = await fetch(url.replace(/\/?$/, "/") + "neo-u/new", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-HCP-Key": key },
+      body: JSON.stringify({
+        ref: d.ref,
+        source: d.source,
+        gc_customer_id: d.gcCustomerId || "",
+        first_name: d.firstName || "",
+        last_name: d.lastName,
+        postcode: d.postcode,
+        address: d.address || "",
+        install_pence: d.installPence || 0,
+        install_date: d.installDate || "",
+      }),
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error("HeatCover portal rejected Neo U sign-up:", { ref: d.ref, status: res.status, data });
+      return false;
+    }
+    console.log("Neo U sent to HeatCover portal:", { ref: d.ref, linked: data?.linked });
+    return true;
+  } catch (e: any) {
+    console.error("Neo U could not reach HeatCover portal:", { ref: d.ref, error: e?.message || e });
+    return false;
+  }
+}
