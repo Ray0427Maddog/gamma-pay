@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from "react";
+import NeoUAddExisting from "./NeoUAddExisting";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -44,6 +45,7 @@ function HomeContent() {
   const [success, setSuccess] = useState(false);
   const [markComplete, setMarkComplete] = useState(false);
   const [showHeatCoverSignup, setShowHeatCoverSignup] = useState(false);
+  const [showNeoUAdd, setShowNeoUAdd] = useState(false);
   const [hcStep, setHcStep] = useState<
   "customer" |
   "plan" |
@@ -716,6 +718,10 @@ const now = new Date();
 const isCurrentHistoryMonth =
   historyDate.year === now.getFullYear() &&
   historyDate.month === now.getMonth() + 1;
+
+  if (showNeoUAdd) {
+    return <NeoUAddExisting onClose={() => setShowNeoUAdd(false)} />;
+  }
 
   if (showHeatCoverSignup) {
   return (
@@ -2274,6 +2280,14 @@ const isCurrentHistoryMonth =
   className="w-full p-4 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold"
 >
   + Add HeatCover+ Customer
+</button>
+
+<button
+  type="button"
+  onClick={() => setShowNeoUAdd(true)}
+  className="w-full p-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 font-bold"
+>
+  + Add Neo U to Existing Customer
 </button>
 
 <div className="flex items-center gap-3 py-2">

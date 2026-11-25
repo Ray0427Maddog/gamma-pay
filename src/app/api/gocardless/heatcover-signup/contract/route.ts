@@ -25,6 +25,10 @@ type ContractRequest = {
   excessFree?: boolean;
   neoU?: boolean;
   neoUInstallPence?: number;
+  // Neo U added to an existing plan: PDF contains ONLY the Neo U agreement
+  neoUOnly?: boolean;
+  neoUInstallDate?: string; // YYYY-MM-DD the £75 is collected
+  neoUMonthlyDay?: number; // day of month the £6 is collected
 };
 
 type HeatCoverPlan = "v1" | "v2" | "v3" | "v4";
@@ -179,6 +183,9 @@ export async function POST(req: NextRequest) {
   excessFree = false,
   neoU = false,
   neoUInstallPence = 0,
+  neoUOnly = false,
+  neoUInstallDate = "",
+  neoUMonthlyDay = 0,
 } = body;
 
     if (
@@ -220,6 +227,9 @@ if (!contract) {
     { status: 400 }
   );
 }
+
+    const withNeoU =
+      contract.plan === "v4" && (neoU === true || neoUOnly === true);
 
     const pdfDoc = await PDFDocument.create();
 
@@ -350,8 +360,141 @@ function drawPageHeader() {
       y -= 15;
     }
 
+    // -----------------------------
+    // NEO U EQUIPMENT AGREEMENT (own pages)
+    // -----------------------------
+    function drawNeoUAgreement() {
+
+      page.drawText("NEO U EQUIPMENT AGREEMENT", {
+        x: MARGIN_X,
+        y,
+        size: 16,
+        font: bold,
+      });
+      y -= 23;
+
+      page.drawText("GammaTherm Neo U Oil Tank Level Monitor", {
+        x: MARGIN_X,
+        y,
+        size: 11,
+        font: bold,
+      });
+      y -= 28;
+
+      heading("Agreement details");
+      detail("Customer", `${firstName} ${lastName}`);
+      detail("Installation address", `${address}, ${city}, ${postcode}`);
+      detail("Linked plan", `HeatCover+ ${contract.displayName}`);
+      detail(
+        "Monthly charge",
+        neoUOnly
+          ? `£6.00 per month by Direct Debit${
+              neoUMonthlyDay ? `, on the ${ordinal(neoUMonthlyDay)}` : ""
+            }`
+          : "£6.00 (included in your HeatCover+ payment)"
+      );
+      detail(
+        "Installation fee",
+        neoUInstallPence > 0
+          ? `£${(neoUInstallPence / 100).toFixed(2)} one-off, ${
+              neoUOnly && neoUInstallDate
+                ? `collected on ${formatDate(new Date(`${neoUInstallDate}T12:00:00Z`))}`
+                : "with your first payment"
+            }`
+          : "As quoted at sign-up"
+      );
+      detail("Agreement date", formatDate(new Date()));
+      detail("Reference", signupId);
+      y -= 8;
+
+      const neoUTerms: [string, string[]][] = [
+        [
+          "1. The service",
+          [
+            "Gamma Heating Ltd (\"we\", \"us\") will supply, install, configure and commission a GammaTherm Neo U oil tank level monitor (\"the Equipment\") at the installation address, and provide a weekly email report showing the approximate oil remaining in your tank.",
+            "If the Equipment stops reporting for more than 7 days, we will email you asking you to contact us so we can check it.",
+          ],
+        ],
+        [
+          "2. Eligibility",
+          [
+            "The Neo U service is only available with an active HeatCover+ V4 plan. If your V4 plan ends for any reason, this agreement ends at the same time.",
+          ],
+        ],
+        [
+          "3. Charges",
+          [
+            neoUOnly
+              ? "The one-off installation fee shown above is collected using your existing HeatCover+ Direct Debit with Gamma Heating Ltd."
+              : "The one-off installation fee shown above is collected by Direct Debit together with your first HeatCover+ monthly payment.",
+            neoUOnly
+              ? "The £6.00 monthly charge is collected each month by Direct Debit using your existing HeatCover+ Direct Debit, for as long as this agreement is in place. GoCardless will notify you before each payment."
+              : "The £6.00 monthly charge is included in your HeatCover+ monthly Direct Debit for as long as this agreement is in place.",
+          ],
+        ],
+        [
+          "4. Ownership of the Equipment",
+          [
+            "The Equipment remains the property of Gamma Heating Ltd at all times. Paying the installation fee and the monthly charge does not transfer ownership of the Equipment to you.",
+            "You must not sell, give away, remove, move, open, modify or tamper with the Equipment, or allow anyone else to do so.",
+          ],
+        ],
+        [
+          "5. Maintenance and repairs",
+          [
+            "We are responsible for maintaining the Equipment, including battery replacement, repairs and, where needed, replacement of faulty units, at no extra cost to you.",
+            "This does not cover damage caused by misuse, tampering, accidental damage, or work carried out by anyone other than us. We may charge for repairs or replacement in these cases and will tell you the cost before any work is carried out.",
+          ],
+        ],
+        [
+          "6. Your responsibilities",
+          [
+            "You agree to give us reasonable access to your oil tank to install, maintain, repair, replace or remove the Equipment.",
+            "Please tell us as soon as possible if the Equipment is damaged, stops reporting, or if your oil tank is replaced or moved.",
+          ],
+        ],
+        [
+          "7. Readings",
+          [
+            "Oil level readings are an estimate provided for guidance only. The Equipment is not a leak, theft or safety detection device. You remain responsible for ordering heating oil in good time, and we are not liable for any loss caused by running out of oil.",
+            "The Equipment reports over a mobile data network. We do not guarantee uninterrupted reporting, for example where mobile signal is poor or unavailable.",
+          ],
+        ],
+        [
+          "8. Your information",
+          [
+            "We use your tank readings and contact details only to provide the Neo U service and your HeatCover+ plan.",
+          ],
+        ],
+        [
+          "9. Cancellation and ending this agreement",
+          [
+            "You have the right to cancel this agreement within 14 days of the agreement date without giving any reason. If you ask us to install the Equipment within that period and then cancel, we may deduct a proportionate amount for the work already carried out.",
+            "After that, you can end the Neo U service at any time by contacting us. The £6.00 monthly charge will stop from your next payment. The installation fee is non-refundable once the Equipment has been installed, except as set out above.",
+            "When this agreement ends, we will arrange to collect the Equipment. Please make it available for collection and do not dispose of it.",
+          ],
+        ],
+        [
+          "10. General",
+          [
+            "These terms form part of your HeatCover+ agreement. If anything in these terms conflicts with your HeatCover+ terms, these terms apply to the Neo U Equipment and service. This agreement is governed by the law of England and Wales.",
+          ],
+        ],
+      ];
+
+      for (const [title, paras] of neoUTerms) {
+        heading(title);
+        for (const text of paras) {
+          paragraph(text);
+        }
+      }
+        }
+
     drawPageHeader();
 
+    if (neoUOnly) {
+      drawNeoUAgreement();
+    } else {
      page.drawText("HEATCOVER+ TELEPHONE AGREEMENT", {
       x: MARGIN_X,
       y,
@@ -389,7 +532,6 @@ function drawPageHeader() {
     heading("Agreement");
 
     detail("HeatCover+ plan", contract.displayName);
-const withNeoU = contract.plan === "v4" && neoU === true;
 detail(
   "Monthly payment",
   `£${(contract.monthlyPrice + (withNeoU ? 6 : 0)).toFixed(2)}`
@@ -769,127 +911,19 @@ const coveredItems =
       bullet(item);
     }
 
-    // -----------------------------
-    // SEPARATE NEO U EQUIPMENT AGREEMENT (own pages)
-    // -----------------------------
-    if (withNeoU) {
+    if (withNeoU && !neoUOnly) {
       addPage();
-
-      page.drawText("NEO U EQUIPMENT AGREEMENT", {
-        x: MARGIN_X,
-        y,
-        size: 16,
-        font: bold,
-      });
-      y -= 23;
-
-      page.drawText("GammaTherm Neo U Oil Tank Level Monitor", {
-        x: MARGIN_X,
-        y,
-        size: 11,
-        font: bold,
-      });
-      y -= 28;
-
-      heading("Agreement details");
-      detail("Customer", `${firstName} ${lastName}`);
-      detail("Installation address", `${address}, ${city}, ${postcode}`);
-      detail("Linked plan", `HeatCover+ ${contract.displayName}`);
-      detail("Monthly charge", "£6.00 (included in your HeatCover+ payment)");
-      detail(
-        "Installation fee",
-        neoUInstallPence > 0
-          ? `£${(neoUInstallPence / 100).toFixed(2)} one-off, with your first payment`
-          : "As quoted at sign-up"
-      );
-      detail("Agreement date", formatDate(new Date()));
-      detail("Reference", signupId);
-      y -= 8;
-
-      const neoUTerms: [string, string[]][] = [
-        [
-          "1. The service",
-          [
-            "Gamma Heating Ltd (\"we\", \"us\") will supply, install, configure and commission a GammaTherm Neo U oil tank level monitor (\"the Equipment\") at the installation address, and provide a weekly email report showing the approximate oil remaining in your tank.",
-            "If the Equipment stops reporting for more than 7 days, we will email you asking you to contact us so we can check it.",
-          ],
-        ],
-        [
-          "2. Eligibility",
-          [
-            "The Neo U service is only available with an active HeatCover+ V4 plan. If your V4 plan ends for any reason, this agreement ends at the same time.",
-          ],
-        ],
-        [
-          "3. Charges",
-          [
-            "The one-off installation fee shown above is collected by Direct Debit together with your first HeatCover+ monthly payment.",
-            "The £6.00 monthly charge is included in your HeatCover+ monthly Direct Debit for as long as this agreement is in place.",
-          ],
-        ],
-        [
-          "4. Ownership of the Equipment",
-          [
-            "The Equipment remains the property of Gamma Heating Ltd at all times. Paying the installation fee and the monthly charge does not transfer ownership of the Equipment to you.",
-            "You must not sell, give away, remove, move, open, modify or tamper with the Equipment, or allow anyone else to do so.",
-          ],
-        ],
-        [
-          "5. Maintenance and repairs",
-          [
-            "We are responsible for maintaining the Equipment, including battery replacement, repairs and, where needed, replacement of faulty units, at no extra cost to you.",
-            "This does not cover damage caused by misuse, tampering, accidental damage, or work carried out by anyone other than us. We may charge for repairs or replacement in these cases and will tell you the cost before any work is carried out.",
-          ],
-        ],
-        [
-          "6. Your responsibilities",
-          [
-            "You agree to give us reasonable access to your oil tank to install, maintain, repair, replace or remove the Equipment.",
-            "Please tell us as soon as possible if the Equipment is damaged, stops reporting, or if your oil tank is replaced or moved.",
-          ],
-        ],
-        [
-          "7. Readings",
-          [
-            "Oil level readings are an estimate provided for guidance only. The Equipment is not a leak, theft or safety detection device. You remain responsible for ordering heating oil in good time, and we are not liable for any loss caused by running out of oil.",
-            "The Equipment reports over a mobile data network. We do not guarantee uninterrupted reporting, for example where mobile signal is poor or unavailable.",
-          ],
-        ],
-        [
-          "8. Your information",
-          [
-            "We use your tank readings and contact details only to provide the Neo U service and your HeatCover+ plan.",
-          ],
-        ],
-        [
-          "9. Cancellation and ending this agreement",
-          [
-            "You have the right to cancel this agreement within 14 days of the agreement date without giving any reason. If you ask us to install the Equipment within that period and then cancel, we may deduct a proportionate amount for the work already carried out.",
-            "After that, you can end the Neo U service at any time by contacting us. The £6.00 monthly charge will stop from your next payment. The installation fee is non-refundable once the Equipment has been installed, except as set out above.",
-            "When this agreement ends, we will arrange to collect the Equipment. Please make it available for collection and do not dispose of it.",
-          ],
-        ],
-        [
-          "10. General",
-          [
-            "These terms form part of your HeatCover+ agreement. If anything in these terms conflicts with your HeatCover+ terms, these terms apply to the Neo U Equipment and service. This agreement is governed by the law of England and Wales.",
-          ],
-        ],
-      ];
-
-      for (const [title, paras] of neoUTerms) {
-        heading(title);
-        for (const text of paras) {
-          paragraph(text);
-        }
-      }
+      drawNeoUAgreement();
     }
+    } // end full HeatCover+ agreement
 
     const pages = pdfDoc.getPages();
 
     pages.forEach((pdfPage, index) => {
       pdfPage.drawText(
-        `Gamma Heating | HeatCover+ ${contract.displayName} | Page ${index + 1} of ${pages.length}`,
+        neoUOnly
+          ? `Gamma Heating | Neo U Equipment Agreement | Page ${index + 1} of ${pages.length}`
+          : `Gamma Heating | HeatCover+ ${contract.displayName} | Page ${index + 1} of ${pages.length}`,
         {
           x: MARGIN_X,
           y: 28,
@@ -909,6 +943,10 @@ if (zapierUrl) {
   const formData = new FormData();
 
   formData.append("signupId", signupId);
+  formData.append(
+    "documentType",
+    neoUOnly ? "neo_u_agreement" : "heatcover_agreement"
+  );
   formData.append("customerName", `${firstName} ${lastName}`.trim());
   formData.append("firstName", firstName);
   formData.append("lastName", lastName);
@@ -918,11 +956,13 @@ if (zapierUrl) {
   formData.append("city", city);
   formData.append("postcode", postcode);
 
-  formData.append("plan", contract.displayName);
+  formData.append("plan", neoUOnly ? "Neo U" : contract.displayName);
   formData.append("planCode", contract.plan);
   formData.append(
     "monthlyAmount",
-    contract.monthlyPrice.toFixed(2)
+    neoUOnly
+      ? "6.00"
+      : (contract.monthlyPrice + (withNeoU ? 6 : 0)).toFixed(2)
   );
   formData.append(
     "paymentDay",
@@ -940,7 +980,9 @@ const pdfFile = new File(
     pdfBuffer.byteOffset,
     pdfBuffer.byteOffset + pdfBuffer.byteLength
   )],
-  `heatcover-${variantKey}-${signupId}.pdf`,
+  neoUOnly
+    ? `neo-u-agreement-${signupId}.pdf`
+    : `heatcover-${variantKey}-${signupId}.pdf`,
   { type: "application/pdf" }
 );
 
