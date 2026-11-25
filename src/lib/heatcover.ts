@@ -39,8 +39,9 @@ export function packTerms(t: {
   paymentDay: number;
   firstCollectionDate: string;
   neoU?: boolean;
+  neoUInstallPence?: number;
 }) {
-  return `ef=${t.excessFree ? "yes" : "no"};nu=${t.neoU ? "yes" : "no"};amt=${t.amountPence};day=${t.paymentDay};first=${t.firstCollectionDate}`;
+  return `ef=${t.excessFree ? "yes" : "no"};nu=${t.neoU ? "yes" : "no"};inst=${t.neoU ? t.neoUInstallPence || 0 : 0};amt=${t.amountPence};day=${t.paymentDay};first=${t.firstCollectionDate}`;
 }
 
 export function unpackTerms(s: string | undefined) {
@@ -54,6 +55,7 @@ export function unpackTerms(s: string | undefined) {
   return {
     excessFree: out.ef === "yes",
     neoU: out.nu === "yes",
+    neoUInstallPence: Number(out.inst || 0),
     amountPence: Number(out.amt),
     paymentDay: Number(out.day),
     firstCollectionDate: out.first || "",

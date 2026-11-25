@@ -1019,7 +1019,7 @@ const isCurrentHistoryMonth =
         ) : (
           "…"
         )}
-        , payable by card.
+        , which is simply added to your first Direct Debit payment.
       </p>
       {neoUPriceError && (
         <p className="text-xs text-red-400 mt-2">
@@ -1071,7 +1071,7 @@ const isCurrentHistoryMonth =
             {neoUPrice
               ? ` £${(neoUPrice.pricePence / 100).toFixed(2)}`
               : ""}{" "}
-            by card
+            with 1st Direct Debit
           </p>
         </div>
         <span className="font-bold">+£6/mo</span>
@@ -1084,9 +1084,10 @@ const isCurrentHistoryMonth =
           TELL CUSTOMER
         </p>
         <p className="text-sm mt-1">
-          Great, I&apos;ve added Neo U. Please have your card ready, as
-          we&apos;ll take the one-off installation fee of £
-          {neoUPrice ? (neoUPrice.pricePence / 100).toFixed(2) : "…"} by card.
+          Great, I&apos;ve added Neo U. The one-off installation fee of £
+          {neoUPrice ? (neoUPrice.pricePence / 100).toFixed(2) : "…"} will be
+          collected by Direct Debit together with your first monthly
+          payment, so there&apos;s nothing to pay today.
         </p>
       </div>
     )}
@@ -1272,7 +1273,8 @@ const isCurrentHistoryMonth =
           stays the property of Gamma Heating and we look after it for you.
           The one-off installation fee of £
           {neoUPrice ? (neoUPrice.pricePence / 100).toFixed(2) : "…"} is
-          paid separately by card, so please have your card ready.
+          collected by Direct Debit together with your first monthly
+          payment.
         </p>
       )}
     </div>
@@ -1801,10 +1803,11 @@ const isCurrentHistoryMonth =
 
           {hcPlan === "v4" && hcNeoU === true && (
             <p>
-              Your Neo U tank monitor is included. Now I&apos;ll take the
-              one-off installation fee of £
-              {neoUPrice ? (neoUPrice.pricePence / 100).toFixed(2) : "…"} by
-              card, and we&apos;ll be in touch to book the installation.
+              Your Neo U tank monitor is included. The one-off installation
+              fee of £
+              {neoUPrice ? (neoUPrice.pricePence / 100).toFixed(2) : "…"} will
+              be taken with your first Direct Debit payment, and we&apos;ll
+              be in touch to book the installation.
             </p>
           )}
 
@@ -1944,7 +1947,7 @@ const isCurrentHistoryMonth =
             {hcNeoU === true
               ? `Yes (+£6/mo, £${
                   neoUPrice ? (neoUPrice.pricePence / 100).toFixed(2) : "…"
-                } install by card)`
+                } install with 1st payment)`
               : "No"}
           </span>
         </div>

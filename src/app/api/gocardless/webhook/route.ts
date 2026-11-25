@@ -386,6 +386,65 @@ console.log(
   }
 );
 
+// -----------------------------
+// NEO U INSTALLATION FEE (one-off Direct Debit,
+// collected on the same day as the first monthly payment)
+// -----------------------------
+if (plan === "v4" && terms.neoU && terms.neoUInstallPence > 0) {
+  try {
+    const installRes = await fetch(`${GC_BASE}/payments`, {
+      method: "POST",
+      headers: gcHeaders(
+        accessToken,
+        `hc-${signupId}-neou-install`
+      ),
+      body: JSON.stringify({
+        payments: {
+          amount: terms.neoUInstallPence,
+          currency: "GBP",
+          charge_date: effectiveFirstCollectionDate,
+          description: "Neo U tank monitor installation",
+          links: { mandate: mandateId },
+          metadata: {
+            heatcover_signup_id: signupId,
+            heatcover_item: "neo_u_install",
+          },
+        },
+      }),
+    });
+
+    const installData = await installRes.json().catch(() => ({}));
+    const alreadyCreated =
+      installRes.status === 409 &&
+      installData?.error?.errors?.[0]?.links?.conflicting_resource_id;
+
+    if (!installRes.ok && !alreadyCreated) {
+      throw new Error(
+        installData?.error?.message || `status ${installRes.status}`
+      );
+    }
+
+    console.log("Neo U installation payment created:", {
+      signupId,
+      paymentId:
+        installData?.payments?.id ||
+        installData?.error?.errors?.[0]?.links?.conflicting_resource_id,
+      amountPence: terms.neoUInstallPence,
+      chargeDate: effectiveFirstCollectionDate,
+    });
+  } catch (installErr: any) {
+    console.error(
+      "Neo U installation payment FAILED - create it manually in GoCardless:",
+      {
+        signupId,
+        mandateId,
+        amountPence: terms.neoUInstallPence,
+        error: installErr?.message || installErr,
+      }
+    );
+  }
+}
+
 // The Direct Debit + subscription are already done at this point.
 // Anything below (customer lookup, agreement email) must never make
 // GoCardless retry the webhook, so failures are logged, not thrown.
@@ -471,6 +530,7 @@ const contractRes = await generateContract(
       plan,
       excessFree: plan !== "v3" && terms.excessFree,
       neoU: plan === "v4" && terms.neoU,
+      neoUInstallPence: terms.neoUInstallPence,
     }),
   })
 );

@@ -24,6 +24,7 @@ type ContractRequest = {
   plan?: HeatCoverPlan;
   excessFree?: boolean;
   neoU?: boolean;
+  neoUInstallPence?: number;
 };
 
 type HeatCoverPlan = "v1" | "v2" | "v3" | "v4";
@@ -177,6 +178,7 @@ export async function POST(req: NextRequest) {
   plan = "v1",
   excessFree = false,
   neoU = false,
+  neoUInstallPence = 0,
 } = body;
 
     if (
@@ -394,6 +396,12 @@ detail(
 );
 if (withNeoU) {
   detail("Neo U tank monitor", "Included (+£6.00 per month)");
+  if (neoUInstallPence > 0) {
+    detail(
+      "Neo U installation",
+      `£${(neoUInstallPence / 100).toFixed(2)} one-off, with first payment`
+    );
+  }
 }
 if (contract.plan === "v3") {
   detail("Breakdown cover", "Not included");
@@ -415,7 +423,7 @@ if (contract.plan === "v3") {
     if (withNeoU) {
       heading("Neo U Oil Tank Level Monitor");
       paragraph(
-        "Your plan includes the GammaTherm Neo U oil tank level monitor for an additional £6.00 per month, included in the monthly payment above. A one-off installation fee is paid separately."
+        "Your plan includes the GammaTherm Neo U oil tank level monitor for an additional £6.00 per month, included in the monthly payment above. The one-off installation fee shown above is collected by Direct Debit together with your first monthly payment."
       );
       paragraph(
         "The Neo U is installed, configured and maintained by Gamma Heating Ltd and remains the property of Gamma Heating Ltd. It is only available with an active HeatCover+ V4 plan. You will receive a weekly email report of the oil remaining in your tank."

@@ -7,6 +7,7 @@ import {
   gcHeaders,
   cleanPhone,
   sendTextMagicSms,
+  getNeoUInstallPrice,
 } from "@/lib/heatcover";
 
 // HeatCover+ sign-up via GoCardless HOSTED page (no £150 add-on needed).
@@ -117,6 +118,24 @@ export async function POST(req: Request) {
     }
     const withNeoU = plan === "v4" && neoU === true;
 
+    // Neo U installation fee: read live from the website shop and
+    // collected by Direct Debit with the first monthly payment.
+    let neoUInstallPence = 0;
+    if (withNeoU) {
+      try {
+        neoUInstallPence = (await getNeoUInstallPrice()).pricePence;
+      } catch {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Couldn't read the Neo U installation price from the website. Try again in a minute.",
+          },
+          { status: 502 }
+        );
+      }
+    }
+
     const accessToken = process.env.HEATCOVER_GOCARDLESS_ACCESS_TOKEN;
     if (!accessToken) {
       return NextResponse.json(
@@ -143,6 +162,7 @@ export async function POST(req: Request) {
         paymentDay,
         firstCollectionDate,
         neoU: withNeoU,
+        neoUInstallPence,
       }),
     };
 
@@ -166,6 +186,10 @@ export async function POST(req: Request) {
                 : [3, 23].includes(paymentDay)
                 ? "rd"
                 : "th"
+            }${
+              withNeoU
+                ? `, plus £${(neoUInstallPence / 100).toFixed(2)} Neo U installation taken with the first payment`
+                : ""
             }`,
             metadata,
           },
@@ -257,7 +281,11 @@ export async function POST(req: Request) {
       const smsText =
         `Gamma Heating: Hi ${firstName.trim()}, please set up your ` +
         `HeatCover+ ${String(plan).toUpperCase()}${withNeoU ? " + Neo U" : ""} Direct Debit ` +
-        `(£${pounds}/month) securely with GoCardless here: ${authorisationUrl}`;
+        `(£${pounds}/month${
+          withNeoU
+            ? ` + £${(neoUInstallPence / 100).toFixed(2)} installation with the first payment`
+            : ""
+        }) securely with GoCardless here: ${authorisationUrl}`;
 
       try {
         smsSentTo = cleanPhone(phone);
@@ -278,6 +306,7 @@ export async function POST(req: Request) {
       smsError,
       plan,
       monthlyAmountPence,
+      neoUInstallPence,
       paymentDay,
       firstCollectionDate,
     });
