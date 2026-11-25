@@ -71,10 +71,25 @@ export async function GET(req: Request) {
 
     const results = await Promise.all(
       matches.map(async (c) => {
-        const [m, sub] = await Promise.all([
+        const [m, sub, pay] = await Promise.all([
           gcGet(`/mandates?customer=${c.id}&limit=50`, token),
           gcGet(`/subscriptions?customer=${c.id}&limit=50`, token),
+          gcGet(
+            `/payments?customer=${c.id}&limit=6&sort_field=charge_date&sort_direction=desc`,
+            token
+          ).catch(() => ({ payments: [] })),
         ]);
+
+        const recentPayments = (pay.payments || []).map((p: any) => ({
+          amount: p.amount,
+          chargeDate: p.charge_date,
+          description: p.description || "",
+          status: p.status,
+        }));
+        const lastDate = recentPayments[0]?.chargeDate || "";
+        const suggestedDay = lastDate
+          ? Math.min(Number(lastDate.slice(8, 10)), 28)
+          : 0;
 
         const mandates = (m.mandates || []).filter((x: any) =>
           USABLE_MANDATE.includes(x.status)
@@ -109,6 +124,8 @@ export async function GET(req: Request) {
             nextPossibleChargeDate: x.next_possible_charge_date,
           })),
           subscriptions,
+          recentPayments,
+          suggestedDay,
           hasNeoU: subscriptions.some((s: any) => s.isNeoU),
         };
       })

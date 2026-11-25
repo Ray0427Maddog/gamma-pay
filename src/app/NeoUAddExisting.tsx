@@ -24,6 +24,8 @@ type Result = {
   postcode: string;
   mandates: { id: string; status: string; reference: string }[];
   subscriptions: Sub[];
+  recentPayments: { amount: number; chargeDate: string; description: string; status: string }[];
+  suggestedDay: number;
   hasNeoU: boolean;
 };
 
@@ -55,6 +57,9 @@ export default function NeoUAddExisting({ onClose }: { onClose: () => void }) {
 
   const [customer, setCustomer] = useState<Result | null>(null);
   const [plan, setPlan] = useState<Sub | null>(null);
+  // Manual V4 confirmation (customer has no V4 subscription in GoCardless)
+  const [manualEf, setManualEf] = useState<boolean | null>(null);
+  const [manualDay, setManualDay] = useState<number>(0);
 
   const [price, setPrice] = useState<{ pricePence: number; regularPence: number; onSale: boolean } | null>(null);
   const [priceError, setPriceError] = useState("");
@@ -106,7 +111,9 @@ export default function NeoUAddExisting({ onClose }: { onClose: () => void }) {
           addId,
           customerId: customer.customerId,
           mandateId: plan.mandateId,
-          v4SubscriptionId: plan.id,
+          ...(plan.id
+            ? { v4SubscriptionId: plan.id }
+            : { manualDay: plan.dayOfMonth, manualExcessFree: plan.amount === 4900 }),
         }),
       });
       const d = await r.json();
@@ -196,8 +203,83 @@ export default function NeoUAddExisting({ onClose }: { onClose: () => void }) {
 
                   {r.hasNeoU ? (
                     <p className="text-sm text-yellow-400 mt-2">Already has Neo U.</p>
-                  ) : r.subscriptions.length === 0 ? (
-                    <p className="text-sm text-yellow-400 mt-2">No active plan found.</p>
+                  ) : r.subscriptions.filter((x) => !x.isNeoU).length === 0 ? (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-sm text-yellow-400">
+                        Their plan isn&apos;t set up as a GoCardless subscription.
+                        Check they&apos;re on V4 before continuing.
+                      </p>
+                      {r.recentPayments.length > 0 && (
+                        <div className="text-xs text-zinc-400 space-y-1">
+                          <p className="text-zinc-500">Recent payments:</p>
+                          {r.recentPayments.map((p, i) => (
+                            <p key={i}>
+                              {niceDate(p.chargeDate)} · {pounds(p.amount)} ·{" "}
+                              {p.description || "payment"} ({p.status.replace(/_/g, " ")})
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        {[false, true].map((ef) => (
+                          <button
+                            key={String(ef)}
+                            type="button"
+                            onClick={() => {
+                              setManualEf(ef);
+                              if (!manualDay) setManualDay(r.suggestedDay || 1);
+                            }}
+                            className={`p-3 rounded-lg border text-sm font-bold ${
+                              customer?.customerId === r.customerId && manualEf === ef
+                                ? "bg-purple-600 border-pink-500"
+                                : "bg-zinc-900 border-zinc-700"
+                            }`}
+                          >
+                            {ef ? "V4 Excess Free" : "V4"}
+                          </button>
+                        ))}
+                      </div>
+                      <label className="block text-xs text-zinc-400">
+                        Take the £6 on the
+                        <select
+                          value={manualDay || r.suggestedDay || 1}
+                          onChange={(e) => setManualDay(Number(e.target.value))}
+                          className="ml-2 p-2 rounded-lg bg-black border border-zinc-700 text-white"
+                        >
+                          {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                            <option key={d} value={d}>
+                              {ordinal(d)}
+                            </option>
+                          ))}
+                        </select>
+                        {r.suggestedDay ? " (matches their last payment)" : ""}
+                      </label>
+                      <button
+                        type="button"
+                        disabled={manualEf === null}
+                        onClick={() => {
+                          const day = manualDay || r.suggestedDay || 1;
+                          setCustomer(r);
+                          setPlan({
+                            id: "",
+                            name: `HeatCover+ V4${manualEf ? " Excess Free" : ""} (confirmed by staff)`,
+                            amount: manualEf ? 4900 : 3800,
+                            dayOfMonth: day,
+                            mandateId: r.mandates[0].id,
+                            isNeoU: false,
+                          });
+                        }}
+                        className={`w-full p-3 rounded-lg border text-sm font-bold disabled:opacity-40 ${
+                          customer?.customerId === r.customerId && plan && !plan.id
+                            ? "bg-purple-600 border-pink-500"
+                            : "bg-zinc-900 border-zinc-700"
+                        }`}
+                      >
+                        {customer?.customerId === r.customerId && plan && !plan.id
+                          ? "✓ Confirmed on V4"
+                          : "I've confirmed they're on V4"}
+                      </button>
+                    </div>
                   ) : (
                     <div className="mt-3 space-y-2">
                       <p className="text-xs text-zinc-500">Select their V4 plan:</p>

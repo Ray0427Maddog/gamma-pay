@@ -50,12 +50,28 @@ function firstDateOnOrAfter(earliest: string, day: number) {
 
 export async function POST(req: Request) {
   try {
-    const { addId, customerId, mandateId, v4SubscriptionId } = await req.json();
+    const {
+      addId,
+      customerId,
+      mandateId,
+      v4SubscriptionId,
+      // Fallback for customers whose V4 isn't a GoCardless subscription:
+      manualDay,
+      manualExcessFree,
+    } = await req.json();
+    const manual = !v4SubscriptionId;
 
     if (typeof addId !== "string" || !UUID_RE.test(addId)) {
       return NextResponse.json({ success: false, error: "Invalid request ID" }, { status: 400 });
     }
-    if (!/^CU/.test(customerId || "") || !/^MD/.test(mandateId || "") || !/^SB/.test(v4SubscriptionId || "")) {
+    if (
+      !/^CU/.test(customerId || "") ||
+      !/^MD/.test(mandateId || "") ||
+      (!manual && !/^SB/.test(v4SubscriptionId || "")) ||
+      (manual &&
+        (!Number.isInteger(manualDay) || manualDay < 1 || manualDay > 28 ||
+          typeof manualExcessFree !== "boolean"))
+    ) {
       return NextResponse.json({ success: false, error: "Missing customer, Direct Debit or plan" }, { status: 400 });
     }
 
@@ -65,25 +81,27 @@ export async function POST(req: Request) {
     }
 
     // ---- re-check everything on the server ----
-    const [{ data: cData }, { data: mData }, { data: sData }, { data: allSubs }] =
+    const [{ data: cData }, { data: mData }, { data: allSubs }] =
       await Promise.all([
         gc("GET", `/customers/${customerId}`, token),
         gc("GET", `/mandates/${mandateId}`, token),
-        gc("GET", `/subscriptions/${v4SubscriptionId}`, token),
         gc("GET", `/subscriptions?customer=${customerId}&limit=50`, token),
       ]);
 
     const customer = cData.customers;
     const mandate = mData.mandates;
-    const v4Sub = sData.subscriptions;
+    const v4Sub = manual
+      ? null
+      : (await gc("GET", `/subscriptions/${v4SubscriptionId}`, token)).data
+          .subscriptions;
 
-    if (!customer || !mandate || !v4Sub) {
+    if (!customer || !mandate || (!manual && !v4Sub)) {
       throw new Error("Could not load the customer from GoCardless");
     }
     if (mandate.links?.customer !== customerId || !USABLE_MANDATE.includes(mandate.status)) {
       return NextResponse.json({ success: false, error: "That Direct Debit isn't active for this customer" }, { status: 400 });
     }
-    if (v4Sub.status !== "active" || v4Sub.links?.mandate !== mandateId) {
+    if (v4Sub && (v4Sub.status !== "active" || v4Sub.links?.mandate !== mandateId)) {
       return NextResponse.json({ success: false, error: "That plan isn't active on this Direct Debit" }, { status: 400 });
     }
     const alreadyNeoU = (allSubs.subscriptions || []).some(
@@ -130,7 +148,7 @@ export async function POST(req: Request) {
       install.data?.payments?.charge_date || earliest;
 
     // ---- 2. £6/month, same day of month as their V4 plan ----
-    const v4Day = Number(v4Sub.day_of_month);
+    const v4Day = manual ? Number(manualDay) : Number(v4Sub.day_of_month);
     const day =
       Number.isInteger(v4Day) && v4Day >= 1 && v4Day <= 28
         ? v4Day
@@ -175,7 +193,9 @@ export async function POST(req: Request) {
             postcode: customer.postal_code || "",
             paymentDay: day,
             plan: "v4",
-            excessFree: Number(v4Sub.amount) === 4900,
+            excessFree: manual
+              ? manualExcessFree === true
+              : Number(v4Sub.amount) === 4900,
             neoU: true,
             neoUOnly: true,
             neoUInstallPence: installPence,
