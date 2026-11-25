@@ -73,12 +73,20 @@ export function gcHeaders(accessToken: string, idempotencyKey?: string) {
   return h;
 }
 
-// UK mobile -> TextMagic format (447...)
+// Any common way of typing a UK mobile -> TextMagic format (447xxxxxxxxx).
+// Handles: 07700 900000, +44 7700 900000, +44 (0)7700 900000,
+// 0044 7700..., 44 07700..., 7700900000, dots/dashes/brackets.
 export function cleanPhone(phone: string) {
-  let cleaned = String(phone || "").replace(/[\s\-()]/g, "");
-  if (cleaned.startsWith("+")) cleaned = cleaned.slice(1);
-  if (cleaned.startsWith("0")) cleaned = `44${cleaned.slice(1)}`;
-  return cleaned;
+  let d = String(phone || "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.startsWith("440")) d = "44" + d.slice(3);
+  if (d.startsWith("0")) d = "44" + d.slice(1);
+  if (d.length === 10 && d.startsWith("7")) d = "44" + d;
+  return d;
+}
+
+export function isUkMobile(cleaned: string) {
+  return /^447\d{9}$/.test(cleaned);
 }
 
 export async function sendTextMagicSms(phone: string, message: string) {
@@ -103,7 +111,12 @@ export async function sendTextMagicSms(phone: string, message: string) {
 
   if (!res.ok) {
     console.error("TextMagic error:", data);
-    throw new Error(data.message || "Could not send SMS");
+    const fields = data?.errors?.fields
+      ? Object.keys(data.errors.fields).join(", ")
+      : "";
+    throw new Error(
+      `${data.message || "Could not send SMS"}${fields ? ` (${fields})` : ""}`
+    );
   }
 
   return data;

@@ -6,6 +6,7 @@ import {
   packTerms,
   gcHeaders,
   cleanPhone,
+  isUkMobile,
   sendTextMagicSms,
   getNeoUInstallPrice,
 } from "@/lib/heatcover";
@@ -289,6 +290,11 @@ export async function POST(req: Request) {
 
       try {
         smsSentTo = cleanPhone(phone);
+        if (!isUkMobile(smsSentTo)) {
+          throw new Error(
+            `"${phone}" doesn't look like a UK mobile number`
+          );
+        }
         await sendTextMagicSms(smsSentTo, smsText);
       } catch (err: any) {
         // The link still works; staff can read it out / copy it.
