@@ -10,9 +10,13 @@ export const GC_BASE =
 export type HeatCoverPlan = "v1" | "v2" | "v3" | "v4";
 
 // Monthly price in pence. The ONLY place prices live for sign-up + webhook.
+// Neo U tank monitor add-on: only on V4, +£6 a month.
+export const NEO_U_MONTHLY_PENCE = 600;
+
 export function heatCoverMonthlyPence(
   plan: HeatCoverPlan,
-  excessFree: boolean
+  excessFree: boolean,
+  neoU = false
 ): number {
   const base: Record<HeatCoverPlan, number> = {
     v1: 2700,
@@ -20,7 +24,11 @@ export function heatCoverMonthlyPence(
     v3: 1200,
     v4: 3800,
   };
-  return base[plan] + (plan !== "v3" && excessFree ? 1100 : 0);
+  return (
+    base[plan] +
+    (plan !== "v3" && excessFree ? 1100 : 0) +
+    (plan === "v4" && neoU ? NEO_U_MONTHLY_PENCE : 0)
+  );
 }
 
 // GoCardless only allows 3 metadata keys, so the plan terms are packed
@@ -30,8 +38,9 @@ export function packTerms(t: {
   amountPence: number;
   paymentDay: number;
   firstCollectionDate: string;
+  neoU?: boolean;
 }) {
-  return `ef=${t.excessFree ? "yes" : "no"};amt=${t.amountPence};day=${t.paymentDay};first=${t.firstCollectionDate}`;
+  return `ef=${t.excessFree ? "yes" : "no"};nu=${t.neoU ? "yes" : "no"};amt=${t.amountPence};day=${t.paymentDay};first=${t.firstCollectionDate}`;
 }
 
 export function unpackTerms(s: string | undefined) {
@@ -44,6 +53,7 @@ export function unpackTerms(s: string | undefined) {
     });
   return {
     excessFree: out.ef === "yes",
+    neoU: out.nu === "yes",
     amountPence: Number(out.amt),
     paymentDay: Number(out.day),
     firstCollectionDate: out.first || "",
@@ -95,4 +105,30 @@ export async function sendTextMagicSms(phone: string, message: string) {
   }
 
   return data;
+}
+
+// Live Neo U installation price from the website shop (WooCommerce
+// Store API, public). Product 6909 = "GammaTherm Neo U".
+export const NEO_U_PRODUCT_ID = 6909;
+
+export async function getNeoUInstallPrice() {
+  const res = await fetch(
+    `https://gammaheating.co.uk/wp-json/wc/store/v1/products/${NEO_U_PRODUCT_ID}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) throw new Error(`Shop price lookup failed (${res.status})`);
+  const p = await res.json();
+  const minor = Number(p?.prices?.currency_minor_unit ?? 2);
+  const toPence = (v: unknown) =>
+    Math.round(Number(v) * Math.pow(10, 2 - minor));
+  const pricePence = toPence(p?.prices?.price);
+  const regularPence = toPence(p?.prices?.regular_price);
+  if (!Number.isFinite(pricePence) || pricePence <= 0) {
+    throw new Error("Shop returned no Neo U price");
+  }
+  return {
+    pricePence,
+    regularPence: Number.isFinite(regularPence) ? regularPence : pricePence,
+    onSale: Boolean(p?.on_sale) && regularPence > pricePence,
+  };
 }

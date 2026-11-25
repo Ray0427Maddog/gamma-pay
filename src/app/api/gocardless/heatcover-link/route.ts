@@ -55,6 +55,7 @@ export async function POST(req: Request) {
       excessFree,
       paymentDay,
       sendSms,
+      neoU,
     } = body;
 
     // ---------- VALIDATION ----------
@@ -108,6 +109,14 @@ export async function POST(req: Request) {
       );
     }
 
+    if (neoU === true && plan !== "v4") {
+      return NextResponse.json(
+        { success: false, error: "Neo U is only available on V4" },
+        { status: 400 }
+      );
+    }
+    const withNeoU = plan === "v4" && neoU === true;
+
     const accessToken = process.env.HEATCOVER_GOCARDLESS_ACCESS_TOKEN;
     if (!accessToken) {
       return NextResponse.json(
@@ -119,7 +128,8 @@ export async function POST(req: Request) {
     const isExcessFree = plan !== "v3" && excessFree === true;
     const monthlyAmountPence = heatCoverMonthlyPence(
       plan as HeatCoverPlan,
-      isExcessFree
+      isExcessFree,
+      withNeoU
     );
     const firstCollectionDate = getFirstCollectionDate(paymentDay);
 
@@ -132,6 +142,7 @@ export async function POST(req: Request) {
         amountPence: monthlyAmountPence,
         paymentDay,
         firstCollectionDate,
+        neoU: withNeoU,
       }),
     };
 
@@ -147,7 +158,7 @@ export async function POST(req: Request) {
             // Shown to the customer on the GoCardless page
             description: `HeatCover+ ${String(plan).toUpperCase()}${
               isExcessFree ? " Excess Free" : ""
-            } - £${(monthlyAmountPence / 100).toFixed(2)} per month, taken on the ${paymentDay}${
+            }${withNeoU ? " + Neo U" : ""} - £${(monthlyAmountPence / 100).toFixed(2)} per month, taken on the ${paymentDay}${
               [1, 21].includes(paymentDay)
                 ? "st"
                 : [2, 22].includes(paymentDay)
@@ -245,7 +256,7 @@ export async function POST(req: Request) {
       const pounds = (monthlyAmountPence / 100).toFixed(2);
       const smsText =
         `Gamma Heating: Hi ${firstName.trim()}, please set up your ` +
-        `HeatCover+ ${String(plan).toUpperCase()} Direct Debit ` +
+        `HeatCover+ ${String(plan).toUpperCase()}${withNeoU ? " + Neo U" : ""} Direct Debit ` +
         `(£${pounds}/month) securely with GoCardless here: ${authorisationUrl}`;
 
       try {

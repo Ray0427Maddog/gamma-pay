@@ -84,6 +84,40 @@ const [hcSmsSentTo, setHcSmsSentTo] = useState<string | null>(null);
 const [hcSmsError, setHcSmsError] = useState<string | null>(null);
 const [hcLinkStatus, setHcLinkStatus] = useState("pending");
 
+// Neo U tank monitor add-on (V4 only)
+const [hcNeoU, setHcNeoU] = useState<boolean | null>(null);
+const [neoUPrice, setNeoUPrice] = useState<{
+  pricePence: number;
+  regularPence: number;
+  onSale: boolean;
+} | null>(null);
+const [neoUPriceError, setNeoUPriceError] = useState("");
+
+// Fetch the live installation price from the website when V4 is picked.
+useEffect(() => {
+  if (hcPlan !== "v4") return;
+  setNeoUPriceError("");
+  fetch("/api/heatcover/neo-u-price", { cache: "no-store" })
+    .then((r) => r.json())
+    .then((d) => {
+      if (d.success) setNeoUPrice(d);
+      else setNeoUPriceError(d.error || "price unavailable");
+    })
+    .catch(() => setNeoUPriceError("price unavailable"));
+}, [hcPlan]);
+
+// Monthly HeatCover+ price in pounds, including add-ons.
+const hcMonthlyPounds = () =>
+  (hcPlan === "v1"
+    ? 27
+    : hcPlan === "v2"
+    ? 18
+    : hcPlan === "v3"
+    ? 12
+    : 38) +
+  (hcPlan !== "v3" && hcExcessFree === true ? 11 : 0) +
+  (hcPlan === "v4" && hcNeoU === true ? 6 : 0);
+
 // While waiting, check every 5 s whether the customer has finished.
 useEffect(() => {
   if (hcStep !== "waiting" || !hcBillingRequestId) return;
@@ -211,6 +245,7 @@ async function submitHeatCoverSignup() {
 
         paymentDay: hcPaymentDay,
         sendSms: true,
+        neoU: hcPlan === "v4" && hcNeoU === true,
       }),
     });
 
@@ -869,6 +904,7 @@ const isCurrentHistoryMonth =
         onClick={() => {
         setHcPlan(plan.id as "v1" | "v2" | "v3" | "v4");
         setHcExcessFree(null);
+        setHcNeoU(null);
        }}
         className={`w-full p-4 rounded-xl border text-left ${
   plan.disabled
@@ -959,6 +995,104 @@ const isCurrentHistoryMonth =
 
   </div>
 )}
+{hcPlan === "v4" && (
+  <div className="p-4 rounded-xl bg-black border border-zinc-700 space-y-3">
+
+    <div className="p-3 rounded-lg bg-yellow-900/40 border border-yellow-700">
+      <p className="text-sm font-bold text-yellow-400">
+        ASK CUSTOMER
+      </p>
+      <p className="text-sm mt-1">
+        Would you like to add our Neo U oil tank level monitor for an
+        additional £6 per month? It measures the oil in your tank and emails
+        you a weekly report of how much oil you have left, so you never run
+        out. There is a one-off installation fee of{" "}
+        {neoUPrice ? (
+          neoUPrice.onSale ? (
+            <>
+              £{(neoUPrice.regularPence / 100).toFixed(2)}, currently
+              discounted to £{(neoUPrice.pricePence / 100).toFixed(2)}
+            </>
+          ) : (
+            <>£{(neoUPrice.pricePence / 100).toFixed(2)}</>
+          )
+        ) : (
+          "…"
+        )}
+        , payable by card.
+      </p>
+      {neoUPriceError && (
+        <p className="text-xs text-red-400 mt-2">
+          Couldn&apos;t load the current installation price ({neoUPriceError}).
+          Check it on gammaheating.co.uk before quoting.
+        </p>
+      )}
+    </div>
+
+    <div>
+      <p className="font-bold">Neo U Tank Monitor</p>
+      <p className="text-sm text-zinc-400">
+        Select the customer&apos;s answer.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => setHcNeoU(false)}
+      className={`w-full p-4 rounded-xl border text-left ${
+        hcNeoU === false
+          ? "bg-purple-600 border-pink-500"
+          : "bg-zinc-900 border-zinc-700"
+      }`}
+    >
+      <div className="flex justify-between">
+        <div>
+          <p className="font-bold">No thanks</p>
+          <p className="text-sm text-zinc-400">No tank monitor</p>
+        </div>
+        <span className="font-bold">£0</span>
+      </div>
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setHcNeoU(true)}
+      className={`w-full p-4 rounded-xl border text-left ${
+        hcNeoU === true
+          ? "bg-purple-600 border-pink-500"
+          : "bg-zinc-900 border-zinc-700"
+      }`}
+    >
+      <div className="flex justify-between">
+        <div>
+          <p className="font-bold">Yes, add Neo U</p>
+          <p className="text-sm text-zinc-400">
+            Install fee
+            {neoUPrice
+              ? ` £${(neoUPrice.pricePence / 100).toFixed(2)}`
+              : ""}{" "}
+            by card
+          </p>
+        </div>
+        <span className="font-bold">+£6/mo</span>
+      </div>
+    </button>
+
+    {hcNeoU === true && (
+      <div className="p-3 rounded-lg bg-yellow-900/40 border border-yellow-700">
+        <p className="text-sm font-bold text-yellow-400">
+          TELL CUSTOMER
+        </p>
+        <p className="text-sm mt-1">
+          Great, I&apos;ve added Neo U. Please have your card ready, as
+          we&apos;ll take the one-off installation fee of £
+          {neoUPrice ? (neoUPrice.pricePence / 100).toFixed(2) : "…"} by card.
+        </p>
+      </div>
+    )}
+
+  </div>
+)}
 {hcPlan && (
   <div className="p-4 rounded-xl bg-zinc-800 border border-zinc-700">
     <p className="text-sm text-zinc-400">
@@ -968,20 +1102,18 @@ const isCurrentHistoryMonth =
     <p className="text-3xl font-bold text-pink-500">
       £
       {(
-        (hcPlan === "v1"
-          ? 27
-          : hcPlan === "v2"
-          ? 18
-          : hcPlan === "v3"
-          ? 12
-          : 38) +
-        (hcExcessFree === true ? 11 : 0)
+        hcMonthlyPounds()
       ).toFixed(2)}
     </p>
 
     {hcExcessFree === true && (
       <p className="text-sm text-zinc-400 mt-1">
         Excess Free included
+      </p>
+    )}
+    {hcPlan === "v4" && hcNeoU === true && (
+      <p className="text-sm text-zinc-400 mt-1">
+        Neo U tank monitor included
       </p>
     )}
   </div>
@@ -1016,7 +1148,8 @@ const isCurrentHistoryMonth =
     onClick={() => setHcStep("script")}
     disabled={
       !hcPlan ||
-      (hcPlan !== "v3" && hcExcessFree === null)
+      (hcPlan !== "v3" && hcExcessFree === null) ||
+      (hcPlan === "v4" && hcNeoU === null)
     }
     className="w-2/3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
   >
@@ -1064,14 +1197,7 @@ const isCurrentHistoryMonth =
         <p className="font-bold text-pink-500">
           £
           {(
-            (hcPlan === "v1"
-              ? 27
-              : hcPlan === "v2"
-              ? 18
-              : hcPlan === "v3"
-              ? 12
-              : 38) +
-            (hcExcessFree === true ? 11 : 0)
+            hcMonthlyPounds()
           ).toFixed(2)}
           /mo
         </p>
@@ -1122,7 +1248,7 @@ const isCurrentHistoryMonth =
     and access to the customer portal. A CD12 landlord oil installation
     check is also included for rented properties. Your monthly payment
     will be £
-    {(38 + (hcExcessFree === true ? 11 : 0)).toFixed(2)}.
+    {hcMonthlyPounds().toFixed(2)}.
   </p>
 )}
 
@@ -1136,6 +1262,17 @@ const isCurrentHistoryMonth =
         <p className="mt-3">
           You have chosen Excess Free cover, so there is no £55 excess
           to pay when making a breakdown claim.
+        </p>
+      )}
+
+      {hcPlan === "v4" && hcNeoU === true && (
+        <p className="mt-3">
+          Your plan also includes our Neo U oil tank level monitor for £6
+          per month, which is included in the monthly payment above. It
+          stays the property of Gamma Heating and we look after it for you.
+          The one-off installation fee of £
+          {neoUPrice ? (neoUPrice.pricePence / 100).toFixed(2) : "…"} is
+          paid separately by card, so please have your card ready.
         </p>
       )}
     </div>
@@ -1638,15 +1775,10 @@ const isCurrentHistoryMonth =
           <p>
             Your HeatCover+{" "}
             {hcPlan.toUpperCase()}
-            {hcExcessFree === true ? " Excess Free" : ""} plan is £
+            {hcExcessFree === true ? " Excess Free" : ""}
+            {hcPlan === "v4" && hcNeoU === true ? " with Neo U" : ""} plan is £
             {(
-              (hcPlan === "v1"
-                ? 27
-                : hcPlan === "v2"
-                ? 18
-                : hcPlan === "v3"
-                ? 12
-                : 38) + (hcExcessFree === true ? 11 : 0)
+              hcMonthlyPounds()
             ).toFixed(2)}{" "}
             a month, taken on the {hcPaymentDay}
             {hcPaymentDay === 1 || hcPaymentDay === 21
@@ -1664,6 +1796,15 @@ const isCurrentHistoryMonth =
             <p>
               Your plan starts today, and breakdown cover begins after 30
               days.
+            </p>
+          )}
+
+          {hcPlan === "v4" && hcNeoU === true && (
+            <p>
+              Your Neo U tank monitor is included. Now I&apos;ll take the
+              one-off installation fee of £
+              {neoUPrice ? (neoUPrice.pricePence / 100).toFixed(2) : "…"} by
+              card, and we&apos;ll be in touch to book the installation.
             </p>
           )}
 
@@ -1709,6 +1850,7 @@ const isCurrentHistoryMonth =
           setHcCity("");
           setHcPostcode("");
           setHcPaymentDay(null);
+          setHcNeoU(null);
           setHcBillingRequestId("");
           setHcLinkUrl("");
           setHcSmsSentTo(null);
@@ -1795,19 +1937,25 @@ const isCurrentHistoryMonth =
         </span>
       </div>
 
+      {hcPlan === "v4" && (
+        <div className="flex justify-between gap-4">
+          <span className="text-zinc-400">Neo U tank monitor</span>
+          <span className="font-bold">
+            {hcNeoU === true
+              ? `Yes (+£6/mo, £${
+                  neoUPrice ? (neoUPrice.pricePence / 100).toFixed(2) : "…"
+                } install by card)`
+              : "No"}
+          </span>
+        </div>
+      )}
+
       <div className="flex justify-between gap-4">
         <span className="text-zinc-400">Monthly payment</span>
         <span className="font-bold text-pink-500">
           £
           {(
-            (hcPlan === "v1"
-              ? 27
-              : hcPlan === "v2"
-              ? 18
-              : hcPlan === "v3"
-              ? 12
-              : 38) +
-            (hcExcessFree === true ? 11 : 0)
+            hcMonthlyPounds()
           ).toFixed(2)}
         </span>
       </div>

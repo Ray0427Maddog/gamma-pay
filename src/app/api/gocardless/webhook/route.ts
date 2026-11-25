@@ -212,7 +212,8 @@ for (const event of events) {
   // Price is recalculated here, never trusted from metadata alone.
   const monthlyAmountPence = heatCoverMonthlyPence(
     plan,
-    terms.excessFree
+    terms.excessFree,
+    terms.neoU
   );
 
   if (terms.amountPence !== monthlyAmountPence) {
@@ -298,7 +299,7 @@ const subscriptionPayload = {
   subscriptions: {
     amount: monthlyAmountPence,
     currency: "GBP",
-    name: `HeatCover+ ${plan.toUpperCase()}`,
+    name: `HeatCover+ ${plan.toUpperCase()}${terms.neoU ? " + Neo U" : ""}`,
     interval_unit: "monthly",
     interval: 1,
     day_of_month: paymentDay,
@@ -469,6 +470,7 @@ const contractRes = await generateContract(
       paymentDay,
       plan,
       excessFree: plan !== "v3" && terms.excessFree,
+      neoU: plan === "v4" && terms.neoU,
     }),
   })
 );
